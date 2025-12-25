@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<div>
+body angle -180 <input id="slider1" type="range"
+ min="-180" max="180" step="10" value="0"
+  />
+ 180
+</div><br/>
+
+<div>
+lower arm angle -180 <input id="slider2" type="range"
+ min="-180" max="180" step="10" value="0"
+  />
+ 180
+</div><br/>
+
+<div>
+upper arm angle -180 <input id="slider3" type="range"
+ min="-180" max="180" step="10" value="0"
+  />
+ 180
+</div><br/>
+
+<div>
+gripper angle 0 <input id="slider4" type="range"
+ min="0" max="45" step="1" value="0"
+  />
+ 45
+</div><br/>
+
+<div>
+<button id="graspButton">Grasp</button>
+<button id="releaseButton">Release</button>
+</div><br/>
+
+<div>
+Animation Speed 0.1 <input id="speedSlider" type="range"
+ min="0.1" max="5.0" step="0.1" value="1.0"
+  />
+ 5.0
+</div><br/>
+
+<div>
+Extrusion Depth 0.1 <input id="extrusionSlider" type="range"
+ min="0.1" max="3.0" step="0.1" value="1.0"
+  />
+ 3.0 <span id="extrusionValue">1.00</span>
+</div><br/>
+
+<div>
+Scale Factor 0.1 <input id="scaleSlider" type="range"
+ min="0.1" max="2.0" step="0.1" value="1.0"
+  />
+ 2.0 <span id="scaleValue">1.00</span>
+</div><br/>
+
+<div>
+<label>Manual Rotation Controls (Select "Manual Control" to use):</label><br/>
+<label>Rot X: 0 <input type="range" id="rot_x" min="0" max="360" step="5" value="0" /> 360</label><br/>
+<label>Rot Y: 0 <input type="range" id="rot_y" min="0" max="360" step="5" value="0" /> 360</label><br/>
+<label>Rot Z: 0 <input type="range" id="rot_z" min="0" max="360" step="5" value="0" /> 360</label>
+</div><br/>
+
+<div>
+<label>Manual Translation Controls (Select "Manual Control" to use):</label><br/>
+<label>Pos X: -5 <input type="range" id="trans_x" min="-5" max="5" step="0.1" value="0" /> 5</label><br/>
+<label>Pos Y: -5 <input type="range" id="trans_y" min="-5" max="5" step="0.1" value="0" /> 5</label><br/>
+<label>Pos Z: -5 <input type="range" id="trans_z" min="-5" max="5" step="0.1" value="0" /> 5</label>
+</div><br/>
+
+<div>
+Rotation Sequence: 
+<select id="rotationModeSelect">
+    <option value="manual">Manual 360 Movement</option>
+    <option value="full_sweep">Full Sweep Sequence</option>
+    <option value="exercise">Exercise/Stretch Sequence</option>
+    <option value="circular">Circular Motion Sequence</option>
+    <option value="object_scan">Object Scan (Precision & Range)</option>
+    <option value="arm_rotate">Arm Rotate</option>
+</select>
+<button id="applyRotationButton">Apply</button>
+</div><br/>
+
+<div>
+<button id="playPauseButton" class="play_pause_button">Play</button>
+<button id="resetButton">Reset</button>
+</div><br/>
+
+<canvas id="gl-canvas" width="512" height="512"> </canvas>
+<script id="vertex-shader" type="x-shader/x-vertex">
+#version 300 es
+
+in vec4 aPosition;
+in vec4 aColor;
+out vec4 vColor;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+void main()
+{
+    vColor = aColor;
+    gl_Position = projectionMatrix * modelViewMatrix * aPosition;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+#version 300 es
+
+precision mediump float;
+
+in vec4 vColor;
+out vec4 fColor;
+
+void main()
+{
+    fColor = vColor;
+}
+</script>
+
+<script src="../Common/initShaders.js"></script>
+<script src="../Common/MVnew.js"></script>
+<script src="robotArm.js"></script>
+
+<style>
+button {
+    padding: 8px 16px;
+    margin: 4px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.modeButton {
+    background: #e5e7eb;
+    color: #374151;
+    min-width: 120px;
+}
+
+.modeButton:hover {
+    background: #d1d5db;
+}
+
+.modeButton.active {
+    background: #6366f1;
+    color: white;
+    border: 2px solid #4f46e5;
+}
+
+#playPauseButton.play_state {
+    background: #22c55e;
+    color: white;
+}
+
+#playPauseButton.pause_state {
+    background: #ef4444;
+    color: white;
+}
+
+#resetButton {
+    background: #f59e0b;
+    color: white;
+}
+
+#applyRotationButton {
+    background: #6366f1;
+    color: white;
+}
+
+#graspButton {
+    background: #dc2626;
+    color: white;
+}
+
+#graspButton:hover {
+    background: #b91c1c;
+}
+
+#releaseButton {
+    background: #22c55e;
+    color: white;
+}
+
+#releaseButton:hover {
+    background: #16a34a;
+}
+
+select {
+    padding: 4px 8px;
+    margin: 4px;
+}
+</style>
+
+</body>
+</html>
