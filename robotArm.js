@@ -336,7 +336,10 @@ function setupEvents() {
     document.getElementById("slider4").oninput = function(e) { gripperOpen = parseFloat(e.target.value); syncSliders(); };
 
     // Parameter sliders
-    document.getElementById("speedSlider").oninput = function(e) { animationSpeed = parseFloat(e.target.value); };
+    document.getElementById("speedSlider").oninput = function(e) { 
+        animationSpeed = parseFloat(e.target.value); 
+        document.getElementById("speedValue").innerText = animationSpeed.toFixed(1);
+    };
     document.getElementById("extrusionSlider").oninput = function(e) { 
         extrusionDepth = parseFloat(e.target.value); 
         document.getElementById("extrusionValue").innerText = extrusionDepth.toFixed(2);
@@ -346,7 +349,10 @@ function setupEvents() {
         document.getElementById("scaleValue").innerText = scaleFactor.toFixed(2);
     };
 
-    document.getElementById("trans_y").oninput = function(e) { manualTransY = parseFloat(e.target.value); }; 
+    document.getElementById("trans_y").oninput = function(e) { 
+        manualTransY = parseFloat(e.target.value); 
+        document.getElementById("transYValue").innerText = manualTransY.toFixed(1);
+    }; 
     // Joystick logic
     function createJoystick(knobId, baseId, callback) {
         var stick = document.getElementById(knobId);
@@ -418,7 +424,10 @@ function setupEvents() {
     });
   
     // Zoom slider
-    document.getElementById("camZoom").oninput = function(e) { cameraZoom = parseFloat(e.target.value); };
+    document.getElementById("camZoom").oninput = function(e) { 
+        cameraZoom = parseFloat(e.target.value); 
+        document.getElementById("zoomValue").innerText = Math.round(cameraZoom);
+    };
 
 
     document.getElementById("resetButton").onclick = function() {
@@ -428,9 +437,15 @@ function setupEvents() {
         theta = [0,0,0];
         manualTransX = manualTransY = manualTransZ = 0;
         document.getElementById("trans_y").value = 0;
+        document.getElementById("transYValue").innerText = "0.0";
         
         cameraHori = 45; cameraElevation = 300; cameraZoom = 0;
         document.getElementById("camZoom").value = 0;
+        document.getElementById("zoomValue").innerText = "0";
+        
+        animationSpeed = 1.0;
+        document.getElementById("speedSlider").value = 1.0;
+        document.getElementById("speedValue").innerText = "1.0";
         
         syncSliders();
         updatePlayPauseButton();

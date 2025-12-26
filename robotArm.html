@@ -397,6 +397,11 @@
         background: linear-gradient(135deg, #ea580c, #c2410c);
     }
 
+    #resetButton {
+        width: 100%;
+        margin-top: 10px;
+    }
+
     .btn-blue {
         background: linear-gradient(135deg, #3b82f6, #2563eb);
         color: white;
@@ -476,7 +481,7 @@
 
     .keyboard-info h4 {
         margin-top: 0;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
         border-bottom: none;
         padding-bottom: 0;
     }
@@ -626,10 +631,8 @@
 
     <!-- Header -->
     <header id="page_header">
-        <div class="header_content">
-            <h1>Robotic Arm Digital Twin</h1>
-            <p>Interactive 3D Robot Arm Control System with Pick and Place Capabilities</p>
-        </div>
+        <h1>Robotic Arm Digital Twin</h1>
+        <p>Interactive 3D Robot Arm Control System with Pick and Place Capabilities</p>
     </header>
 
     <!-- Main Container -->
@@ -743,12 +746,12 @@
             <button id="applyRotationButton" class="btn-blue">Load Mode</button>
             <button id="playPauseButton" class="btn-green">Play/Pause</button>
         </div>
-                <button id="resetButton" class="btn-orange" style="width:100%; margin-top:10px;">Reset All</button>
+                <button id="resetButton" class="btn-orange">Reset All</button>
 </div>
 
             <!-- Keyboard Shortcuts Info -->
             <div class="keyboard-info">
-                <h4 style="margin-bottom: 8px;">Keyboard Shortcuts</h4>
+                <h4>Keyboard Shortcuts</h4>
                 <p><kbd>Q</kbd> / <kbd>A</kbd> - Base Rotation (±)</p>
                 <p><kbd>W</kbd> / <kbd>S</kbd> - Lower Arm (±)</p>
                 <p><kbd>E</kbd> / <kbd>D</kbd> - Upper Arm (±)</p>
