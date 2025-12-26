@@ -1,106 +1,201 @@
 <!DOCTYPE html>
 <html>
+<head>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f0f2f5;
+        display: flex;
+        flex-direction: row;
+        padding: 20px;
+        gap: 20px;
+        justify-content: center;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    #controls-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        width: 320px;
+        overflow-y: auto;
+        height: 90vh;
+        border-width: 1px;
+        border-style: solid;
+        border-color: #000000;
+    }
+
+    #canvas-container {
+        background: white;
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 90vh;
+        border-width: 1px;
+        border-style: solid;
+        border-color: #000000;
+    }
+
+    canvas {
+        background-color: #f0f0f0;
+        border: 1px solid #ccc;
+    }
+
+    .control-group {
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+    }
+
+    label { font-size: 11px; color: #555; display: block; margin-bottom: 2px; font-weight: bold;}
+    span.val-display { float: right; color: #6366f1; }
+    input[type=range] { width: 100%; cursor: pointer; }
+    
+    /* Joystick Styles */
+    .joystick-base {
+        width: 80px;
+        height: 80px;
+        background: #e5e7eb;
+        border: 2px solid #ccc;
+        border-radius: 50%;
+        position: relative;
+        margin: 0 auto; /* Center it */
+        touch-action: none; /* Prevents scrolling on mobile while dragging */
+    }
+
+    .joystick-knob {
+        width: 40px;
+        height: 40px;
+        background: #6366f1; /* Blue color */
+        border-radius: 50%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%); /* Center the knob initially */
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        transition: transform 0.1s; /* Smooth reset */
+    }
+
+    .joystick-knob:active {
+        background: #4f46e5;
+        transition: none; /* No delay when dragging */
+    }
+    button {
+        padding: 6px 10px; margin: 2px;
+        border: none; border-radius: 4px;
+        cursor: pointer; font-weight: 600; font-size: 12px;
+        transition: background 0.2s;
+        width: 45%;
+    }
+    
+    .btn-green { background: #22c55e; color: white; }
+    .btn-red { background: #dc2626; color: white; }
+    .btn-blue { background: #4f46e5; color: white; }
+    .btn-orange { background: #f59e0b; color: white; }
+    
+    button:hover { opacity: 0.9; }
+    select { width: 100%; padding: 5px; margin-bottom: 5px; }
+
+     h3 { margin-top: 0; color: #333; font-size: 16px; border-bottom: 2px solid #6366f1; padding-bottom: 5px; }
+    h4 { margin: 5px 0; font-size: 12px; color: #666; text-transform: uppercase; } 
+</style>
+</head>
 <body>
 
-<div>
-body angle -180 <input id="slider1" type="range"
- min="-180" max="180" step="10" value="0"
-  />
- 180
-</div><br/>
+<div id="controls-container">
+    <h3>Digital Twin Controls</h3>
 
-<div>
-lower arm angle -180 <input id="slider2" type="range"
- min="-180" max="180" step="10" value="0"
-  />
- 180
-</div><br/>
+    <div class="control-group">
+        <h4>Joint Angles</h4>
+        <label>Base (-180 to 180) <span id="val1" class="val-display">0</span></label>
+        <input id="slider1" type="range" min="-180" max="180" step="1" value="0" />
 
-<div>
-upper arm angle -180 <input id="slider3" type="range"
- min="-180" max="180" step="10" value="0"
-  />
- 180
-</div><br/>
+        <label>Lower Arm (-45 to 45) <span id="val2" class="val-display">0</span></label>
+        <input id="slider2" type="range" min="-45" max="45" step="1" value="0" />
+        
+        <label>Upper Arm (-150 to 150) <span id="val3" class="val-display">0</span></label>
+        <input id="slider3" type="range" min="-150" max="150" step="1" value="0" />
 
-<div>
-gripper angle 0 <input id="slider4" type="range"
- min="0" max="45" step="1" value="0"
-  />
- 45
-</div><br/>
+        <label>Gripper (-45 to 5) <span id="val4" class="val-display">0</span></label>
+        <input id="slider4" type="range" min="-45" max="5" step="1" value="-45" />
+        
+    </div>
 
-<div>
-<button id="graspButton">Grasp</button>
-<button id="releaseButton">Release</button>
-</div><br/>
+    <div class="control-group">
+        <h4>Model Parameters</h4>
+        <label>Animation Speed</label>
+        <input id="speedSlider" type="range" min="0.1" max="5.0" step="0.1" value="1.0" />
+        
+        <label>Extrusion Depth <span id="extrusionValue" class="val-display">1.00</span></label>
+        <input id="extrusionSlider" type="range" min="0.5" max="1.1" step="0.1" value="1.0" />
+        
+        <label>Scale Factor <span id="scaleValue" class="val-display">1.00</span></label>
+        <input id="scaleSlider" type="range" min="0.7" max="1.4" step="0.1" value="1.0" />
+    </div>
 
-<div>
-Animation Speed 0.1 <input id="speedSlider" type="range"
- min="0.1" max="5.0" step="0.1" value="1.0"
-  />
- 5.0
-</div><br/>
+    <div class="control-group">
+        <h4>Robot Position Control</h4>
+        <p style="font-size:10px; color:#666;">Drag to Slide Robot (X / Z)</p>
+        
+        <div id="joystick-zone-2" class="joystick-base">
+            <div id="joystick-knob-2" class="joystick-knob"></div>
+        </div>
+        
+        <label style="margin-top:10px;">Height (Y)</label>
+        <input id="trans_y" type="range" min="-2" max="0" step="0.1" value="0" />
+    </div>
+    <div class="control-group">
+        <div>
+            <h4>Camera Control</h4>
+            <p style="font-size:10px; color:#666;">Click & Drag to Rotate</p>
+            
+            <div id="joystick-zone" class="joystick-base">
+                <div id="joystick-knob" class="joystick-knob"></div>
+      </div>
+      <div>
+        <label style="margin-top:15px;">Zoom</label>
+        <input id="camZoom" type="range" min="-20" max="5" step="0.5" value="0" />     
+      </div>
+    </div>
+    </div>
 
-<div>
-Extrusion Depth 0.1 <input id="extrusionSlider" type="range"
- min="0.1" max="3.0" step="0.1" value="1.0"
-  />
- 3.0 <span id="extrusionValue">1.00</span>
-</div><br/>
+    <div class="control-group">
+        <h4>Animation Sequences</h4>
+        <select id="rotationModeSelect">
+            <option value="pick_and_place">Pick and Place</option>
+            <option value="manual">Manual Control</option>
+            <option value="full_sweep">Full Sweep Sequence</option>
+            <option value="exercise">Exercise/Stretch</option>
+            <option value="circular">Circular Motion</option>
+            <option value="object_scan">Object Scan</option>
+            <option value="arm_rotate">Continuous Rotate</option>
+        </select>
+        <div style="display:flex; justify-content:space-between;">
+            <button id="applyRotationButton" class="btn-blue">Load Mode</button>
+            <button id="playPauseButton" class="btn-green">Play/Pause</button>
+        </div>
+        <button id="resetButton" class="btn-orange" style="width:100%; margin-top:5px;">Reset All</button>
+    </div>
+</div>
 
-<div>
-Scale Factor 0.1 <input id="scaleSlider" type="range"
- min="0.1" max="2.0" step="0.1" value="1.0"
-  />
- 2.0 <span id="scaleValue">1.00</span>
-</div><br/>
+<div id="canvas-container">
+    <canvas id="gl-canvas" width="800" height="600"> </canvas>
+</div>
 
-<div>
-<label>Manual Rotation Controls (Select "Manual Control" to use):</label><br/>
-<label>Rot X: 0 <input type="range" id="rot_x" min="0" max="360" step="5" value="0" /> 360</label><br/>
-<label>Rot Y: 0 <input type="range" id="rot_y" min="0" max="360" step="5" value="0" /> 360</label><br/>
-<label>Rot Z: 0 <input type="range" id="rot_z" min="0" max="360" step="5" value="0" /> 360</label>
-</div><br/>
-
-<div>
-<label>Manual Translation Controls (Select "Manual Control" to use):</label><br/>
-<label>Pos X: -5 <input type="range" id="trans_x" min="-5" max="5" step="0.1" value="0" /> 5</label><br/>
-<label>Pos Y: -5 <input type="range" id="trans_y" min="-5" max="5" step="0.1" value="0" /> 5</label><br/>
-<label>Pos Z: -5 <input type="range" id="trans_z" min="-5" max="5" step="0.1" value="0" /> 5</label>
-</div><br/>
-
-<div>
-Rotation Sequence: 
-<select id="rotationModeSelect">
-    <option value="manual">Manual 360 Movement</option>
-    <option value="full_sweep">Full Sweep Sequence</option>
-    <option value="exercise">Exercise/Stretch Sequence</option>
-    <option value="circular">Circular Motion Sequence</option>
-    <option value="object_scan">Object Scan (Precision & Range)</option>
-    <option value="arm_rotate">Arm Rotate</option>
-</select>
-<button id="applyRotationButton">Apply</button>
-</div><br/>
-
-<div>
-<button id="playPauseButton" class="play_pause_button">Play</button>
-<button id="resetButton">Reset</button>
-</div><br/>
-
-<canvas id="gl-canvas" width="512" height="512"> </canvas>
 <script id="vertex-shader" type="x-shader/x-vertex">
 #version 300 es
-
 in vec4 aPosition;
 in vec4 aColor;
 out vec4 vColor;
-
 uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;
-
-void main()
-{
+void main() {
     vColor = aColor;
     gl_Position = projectionMatrix * modelViewMatrix * aPosition;
 }
@@ -108,14 +203,10 @@ void main()
 
 <script id="fragment-shader" type="x-shader/x-fragment">
 #version 300 es
-
 precision mediump float;
-
 in vec4 vColor;
 out vec4 fColor;
-
-void main()
-{
+void main() {
     fColor = vColor;
 }
 </script>
@@ -123,76 +214,6 @@ void main()
 <script src="../Common/initShaders.js"></script>
 <script src="../Common/MVnew.js"></script>
 <script src="robotArm.js"></script>
-
-<style>
-button {
-    padding: 8px 16px;
-    margin: 4px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-.modeButton {
-    background: #e5e7eb;
-    color: #374151;
-    min-width: 120px;
-}
-
-.modeButton:hover {
-    background: #d1d5db;
-}
-
-.modeButton.active {
-    background: #6366f1;
-    color: white;
-    border: 2px solid #4f46e5;
-}
-
-#playPauseButton.play_state {
-    background: #22c55e;
-    color: white;
-}
-
-#playPauseButton.pause_state {
-    background: #ef4444;
-    color: white;
-}
-
-#resetButton {
-    background: #f59e0b;
-    color: white;
-}
-
-#applyRotationButton {
-    background: #6366f1;
-    color: white;
-}
-
-#graspButton {
-    background: #dc2626;
-    color: white;
-}
-
-#graspButton:hover {
-    background: #b91c1c;
-}
-
-#releaseButton {
-    background: #22c55e;
-    color: white;
-}
-
-#releaseButton:hover {
-    background: #16a34a;
-}
-
-select {
-    padding: 4px 8px;
-    margin: 4px;
-}
-</style>
 
 </body>
 </html>
