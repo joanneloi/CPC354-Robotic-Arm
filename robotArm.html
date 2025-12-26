@@ -34,15 +34,17 @@
 
     #page_header h1 {
         margin: 0;
-        font-size: 28px;
-        font-weight: 600;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        font-size: 36px;
+        font-weight: 800;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        letter-spacing: 0.5px;
     }
 
     #page_header p {
         margin: 8px 0 0 0;
-        font-size: 14px;
+        font-size: 16px;
         opacity: 0.95;
+        font-weight: 500;
     }
 
     /* Main Container */
@@ -58,7 +60,7 @@
         position: fixed;
         top: 80px;
         left: 0;
-        width: calc(100vw - 620px);
+        width: calc(100vw - 580px);
         height: calc(100vh - 80px);
         background-color: #fff7ed;
         border: none;
@@ -74,44 +76,67 @@
     #controls-container {
         position: fixed;
         top: 140px;
-        right: 120px;
-        width: 480px;
+        right: 80px;
+        width: 500px;
         max-height: calc(100vh - 160px);
-        background: #fff7ed;
-        border: 2px solid #fbbf24;
-        border-radius: 12px;
-        padding: 20px;
+        background: linear-gradient(135deg, #fff6e6 0%, #fff7ed 100%);
+        border: 3px solid #f97316;
+        border-radius: 16px;
+        padding: 24px;
         overflow-y: auto;
         z-index: 1000;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        box-shadow: 0 8px 24px rgba(249, 115, 22, 0.2), 0 2px 8px rgba(0,0,0,0.1);
     }
 
     #controls-container::-webkit-scrollbar {
-        width: 8px;
+        width: 10px;
     }
 
     #controls-container::-webkit-scrollbar-track {
-        background: #fff7ed;
-        border-radius: 4px;
+        background: linear-gradient(180deg, #fff6e6, #fff7ed);
+        border-radius: 5px;
+        border: 1px solid rgba(249, 115, 22, 0.1);
     }
 
     #controls-container::-webkit-scrollbar-thumb {
-        background: #fbbf24;
-        border-radius: 4px;
+        background: linear-gradient(180deg, #f97316, #ea580c);
+        border-radius: 5px;
+        border: 2px solid #fff6e6;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
     }
 
     #controls-container::-webkit-scrollbar-thumb:hover {
-        background: #f59e0b;
+        background: linear-gradient(180deg, #ea580c, #c2410c);
     }
 
     /* Control Group */
     .control-group {
-        margin-bottom: 16px;
-        padding: 16px;
-        background: #fff7ed;
-        border-radius: 10px;
-        border: 1px solid rgba(249, 115, 22, 0.2);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+        padding: 20px;
+        background: linear-gradient(135deg, #ffffff 0%, #fffaf5 100%);
+        border-radius: 12px;
+        border: 2px solid rgba(249, 115, 22, 0.25);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.08), inset 0 1px 0 rgba(255,255,255,0.8);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .control-group::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #f97316, #fbbf24, #f97316);
+        opacity: 0.6;
+    }
+
+    .control-group:hover {
+        border-color: rgba(249, 115, 22, 0.4);
+        box-shadow: 0 6px 16px rgba(249, 115, 22, 0.12), inset 0 1px 0 rgba(255,255,255,0.8);
+        transform: translateY(-1px);
     }
 
     .control-group:last-child {
@@ -119,74 +144,119 @@
     }
 
     h3 {
-        margin: 0 0 20px 0;
+        margin: 0 0 24px 0;
         color: #ea580c;
-        font-size: 24px;
-        font-weight: 600;
+        font-size: 30px;
+        font-weight: 800;
         text-align: center;
-        border-bottom: 3px solid #fbbf24;
-        padding-bottom: 12px;
+        background: linear-gradient(135deg, #ea580c, #f97316);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        padding-bottom: 14px;
+        border-bottom: 3px solid;
+        border-image: linear-gradient(90deg, transparent, #fbbf24, transparent) 1;
+        position: relative;
+    }
+
+    h3::after {
+        content: '';
+        position: absolute;
+        bottom: -3px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 3px;
+        background: linear-gradient(90deg, #f97316, #fbbf24);
+        border-radius: 2px;
     }
 
     h4 {
-        margin: 0 0 12px 0;
-        font-size: 14px;
+        margin: 0 0 16px 0;
+        font-size: 17px;
         color: #ea580c;
         text-transform: uppercase;
-        font-weight: 600;
-        letter-spacing: 0.5px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid rgba(249, 115, 22, 0.15);
+    }
+
+    h4::before {
+        content: '▸';
+        color: #f97316;
+        font-size: 12px;
     }
 
     /* Labels */
     label {
-        font-size: 12px;
+        font-size: 15px;
         color: #7c2d12;
         display: block;
-        margin-bottom: 6px;
-        font-weight: 500;
+        margin-bottom: 8px;
+        font-weight: 700;
+        padding: 4px 0;
     }
 
     .val-display {
-        float: right;
-        color: #f97316;
-        font-weight: 600;
-        font-size: 13px;
+        color: #ea580c;
+        font-weight: 800;
+        font-size: 18px;
+        background: linear-gradient(135deg, #fed7aa, #fdba74);
+        padding: 4px 12px;
+        border-radius: 12px;
+        min-width: 50px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid rgba(249, 115, 22, 0.2);
+        flex-shrink: 0;
     }
 
-    /* Sliders */
+    /* Slider Container - slider and value side by side */
     .slider-container {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         margin-bottom: 12px;
     }
 
     input[type="range"] {
-        flex: 1;
-        height: 6px;
-        border-radius: 3px;
-        background: linear-gradient(to right, #fed7aa 0%, #f97316 100%);
+        height: 8px;
+        border-radius: 4px;
+        background: linear-gradient(to right, #fed7aa 0%, #fdba74 50%, #f97316 100%);
         outline: none;
         cursor: pointer;
         appearance: none;
         -webkit-appearance: none;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid rgba(249, 115, 22, 0.2);
+    }
+
+    .slider-container input[type="range"] {
+        flex: 1;
+        margin: 0;
     }
 
     input[type="range"]::-webkit-slider-thumb {
         appearance: none;
         -webkit-appearance: none;
-        width: 18px;
-        height: 18px;
+        width: 22px;
+        height: 22px;
         border-radius: 50%;
-        background: #ea580c;
+        background: linear-gradient(135deg, #ea580c, #f97316);
         cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        box-shadow: 0 3px 8px rgba(234, 88, 12, 0.4), 0 0 0 2px #fff7ed;
         transition: all 0.2s;
+        border: 2px solid #fff7ed;
     }
 
     input[type="range"]::-webkit-slider-thumb:hover {
-        background: #c2410c;
-        transform: scale(1.1);
+        background: linear-gradient(135deg, #c2410c, #ea580c);
+        transform: scale(1.15);
+        box-shadow: 0 4px 12px rgba(234, 88, 12, 0.5), 0 0 0 2px #fff7ed;
     }
 
     input[type="range"]::-moz-range-thumb {
@@ -198,51 +268,67 @@
         border: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
-
+    
     /* Joystick Styles */
     .joystick-container {
         display: flex;
         flex-direction: column;
         align-items: center;
-        margin: 12px 0;
+        margin: 16px 0;
+        padding: 12px;
+        background: linear-gradient(135deg, #fff7ed, #fff6e6);
+        border-radius: 12px;
+        border: 1px dashed rgba(249, 115, 22, 0.3);
     }
 
     .joystick-base {
-        width: 90px;
-        height: 90px;
-        background: linear-gradient(135deg, #fed7aa, #fdba74);
-        border: 3px solid #f97316;
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, #fed7aa 0%, #fdba74 50%, #f97316 100%);
+        border: 4px solid #f97316;
         border-radius: 50%;
         position: relative;
         margin: 8px auto;
         touch-action: none;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        box-shadow: 0 6px 16px rgba(249, 115, 22, 0.3), inset 0 2px 4px rgba(255,255,255,0.5);
+        transition: transform 0.2s;
+    }
+
+    .joystick-base:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4), inset 0 2px 4px rgba(255,255,255,0.5);
     }
 
     .joystick-knob {
-        width: 45px;
-        height: 45px;
+        width: 48px;
+        height: 48px;
         background: linear-gradient(135deg, #ea580c, #f97316);
         border-radius: 50%;
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        cursor: pointer;
-        box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-        transition: transform 0.15s ease-out;
+        cursor: grab;
+        box-shadow: 0 4px 12px rgba(234, 88, 12, 0.5), inset 0 -2px 4px rgba(0,0,0,0.2);
+        transition: transform 0.15s ease-out, box-shadow 0.15s;
+        border: 2px solid rgba(255,255,255,0.3);
     }
 
     .joystick-knob:active {
         background: linear-gradient(135deg, #c2410c, #ea580c);
+        cursor: grabbing;
+        box-shadow: 0 2px 8px rgba(234, 88, 12, 0.6), inset 0 2px 4px rgba(0,0,0,0.3);
         transition: none;
     }
 
     .joystick-label {
-        font-size: 11px;
+        font-size: 14px;
         color: #7c2d12;
-        margin-top: 8px;
+        margin-top: 10px;
         text-align: center;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     /* Buttons */
@@ -254,23 +340,43 @@
 
     button {
         flex: 1;
-        padding: 10px 16px;
+        padding: 12px 18px;
         border: none;
-        border-radius: 8px;
+        border-radius: 10px;
         cursor: pointer;
-        font-weight: 600;
-        font-size: 13px;
-        transition: all 0.2s;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        font-weight: 800;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+        position: relative;
+        overflow: hidden;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.5s;
+    }
+
+    button:hover::before {
+        left: 100%;
     }
 
     button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.3);
     }
 
     button:active {
-        transform: translateY(0);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2), inset 0 2px 4px rgba(0,0,0,0.2);
     }
 
     .btn-green {
@@ -303,61 +409,104 @@
     /* Select Dropdown */
     select {
         width: 100%;
-        padding: 10px;
-        margin-bottom: 12px;
+        padding: 12px 14px;
+        margin-bottom: 14px;
         border: 2px solid #fbbf24;
-        border-radius: 8px;
-        background: #fff7ed;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #ffffff, #fff7ed);
         color: #7c2d12;
-        font-size: 13px;
-        font-weight: 500;
+        font-size: 16px;
+        font-weight: 700;
         cursor: pointer;
         outline: none;
-        transition: all 0.2s;
+        transition: all 0.3s;
+        box-shadow: 0 2px 6px rgba(249, 115, 22, 0.1);
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ea580c' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 36px;
     }
 
     select:hover {
         border-color: #f97316;
+        box-shadow: 0 4px 10px rgba(249, 115, 22, 0.2);
+        transform: translateY(-1px);
     }
 
     select:focus {
         border-color: #ea580c;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15), 0 4px 12px rgba(249, 115, 22, 0.2);
+        transform: translateY(-1px);
     }
 
     /* Info Text */
     .info-text {
-        font-size: 11px;
-        color: #7c2d12;
-        margin: 8px 0;
+        font-size: 14px;
+        color: #92400e;
+        margin: 10px 0;
         line-height: 1.6;
         font-style: italic;
+        padding: 8px 12px;
+        background: rgba(254, 215, 170, 0.3);
+        border-radius: 6px;
+        border-left: 3px solid #f97316;
     }
 
     /* Keyboard Shortcuts Info */
     .keyboard-info {
-        background: #fff7ed;
-        border: 1px dashed #fbbf24;
-        border-radius: 8px;
-        padding: 12px;
-        margin-top: 16px;
+        background: linear-gradient(135deg, #fff7ed, #fff6e6);
+        border: 2px dashed #fbbf24;
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .keyboard-info::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #f97316, transparent);
+    }
+
+    .keyboard-info h4 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .keyboard-info h4::before {
+        display: none;
     }
 
     .keyboard-info p {
-        margin: 6px 0;
-        font-size: 11px;
+        margin: 8px 0;
+        font-size: 14px;
         color: #7c2d12;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
     }
 
     kbd {
-        background: #f97316;
+        background: linear-gradient(135deg, #f97316, #ea580c);
         color: white;
-        padding: 3px 8px;
-        border-radius: 4px;
+        padding: 5px 12px;
+        border-radius: 6px;
         font-family: 'Courier New', monospace;
-        font-size: 11px;
-        font-weight: 600;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        font-size: 14px;
+        font-weight: 800;
+        box-shadow: 0 3px 6px rgba(234, 88, 12, 0.3), inset 0 -2px 2px rgba(0,0,0,0.2);
+        border: 1px solid rgba(255,255,255,0.2);
+        min-width: 32px;
+        text-align: center;
     }
 
     /* Responsive adjustments */
@@ -479,7 +628,7 @@
     <header id="page_header">
         <div class="header_content">
             <h1>Robotic Arm Digital Twin</h1>
-            <p>Interactive 3D Robot Arm Control System with Pick-and-Place Capabilities</p>
+            <p>Interactive 3D Robot Arm Control System with Pick and Place Capabilities</p>
         </div>
     </header>
 
@@ -489,86 +638,113 @@
         <canvas id="gl-canvas" width="800" height="600"></canvas>
 
         <!-- Control Panel -->
-        <div id="controls-container">
+<div id="controls-container">
             <h3>Control Panel</h3>
 
             <!-- Joint Angles -->
-            <div class="control-group">
-                <h4>Joint Angles</h4>
-                <label>Base Rotation (-180° to 180°) <span id="val1" class="val-display">0</span></label>
-                <input id="slider1" type="range" min="-180" max="180" step="1" value="0" />
+    <div class="control-group">
+        <h4>Joint Angles</h4>
+        <label>Base Rotation (-180° to 180°)</label>
+        <div class="slider-container">
+            <input id="slider1" type="range" min="-180" max="180" step="1" value="0" />
+            <span id="val1" class="val-display">0</span>
+        </div>
 
-                <label>Lower Arm (-45° to 45°) <span id="val2" class="val-display">0</span></label>
-                <input id="slider2" type="range" min="-45" max="45" step="1" value="0" />
-                
-                <label>Upper Arm (-150° to 150°) <span id="val3" class="val-display">0</span></label>
-                <input id="slider3" type="range" min="-150" max="150" step="1" value="0" />
+        <label>Lower Arm (-45° to 45°)</label>
+        <div class="slider-container">
+            <input id="slider2" type="range" min="-45" max="45" step="1" value="0" />
+            <span id="val2" class="val-display">0</span>
+        </div>
+        
+        <label>Upper Arm (-150° to 150°)</label>
+        <div class="slider-container">
+            <input id="slider3" type="range" min="-150" max="150" step="1" value="0" />
+            <span id="val3" class="val-display">0</span>
+        </div>
 
-                <label>Gripper (-45° to 5°) <span id="val4" class="val-display">0</span></label>
-                <input id="slider4" type="range" min="-45" max="5" step="1" value="-45" />
-            </div>
+        <label>Gripper (-45° to 5°)</label>
+        <div class="slider-container">
+            <input id="slider4" type="range" min="-45" max="5" step="1" value="-45" />
+            <span id="val4" class="val-display">0</span>
+        </div>
+    </div>
 
             <!-- Model Parameters -->
-            <div class="control-group">
-                <h4>Model Parameters</h4>
-                <label>Animation Speed <span id="speedValue" class="val-display">1.0</span></label>
-                <input id="speedSlider" type="range" min="0.1" max="5.0" step="0.1" value="1.0" />
-                
-                <label>Extrusion Depth <span id="extrusionValue" class="val-display">1.00</span></label>
-                <input id="extrusionSlider" type="range" min="0.5" max="1.1" step="0.1" value="1.0" />
-                
-                <label>Scale Factor <span id="scaleValue" class="val-display">1.00</span></label>
-                <input id="scaleSlider" type="range" min="0.7" max="1.4" step="0.1" value="1.0" />
-            </div>
+    <div class="control-group">
+        <h4>Model Parameters</h4>
+        <label>Animation Speed</label>
+        <div class="slider-container">
+            <input id="speedSlider" type="range" min="0.1" max="5.0" step="0.1" value="1.0" />
+            <span id="speedValue" class="val-display">1.0</span>
+        </div>
+        
+        <label>Extrusion Depth</label>
+        <div class="slider-container">
+            <input id="extrusionSlider" type="range" min="0.5" max="1.1" step="0.1" value="1.0" />
+            <span id="extrusionValue" class="val-display">1.00</span>
+        </div>
+        
+        <label>Scale Factor</label>
+        <div class="slider-container">
+            <input id="scaleSlider" type="range" min="0.7" max="1.4" step="0.1" value="1.0" />
+            <span id="scaleValue" class="val-display">1.00</span>
+        </div>
+    </div>
 
             <!-- Robot Position Control -->
-            <div class="control-group">
-                <h4>Robot Position Control</h4>
+    <div class="control-group">
+        <h4>Robot Position Control</h4>
                 <p class="info-text">Drag joystick to move robot (X / Z axes)</p>
                 <div class="joystick-container">
-                    <div id="joystick-zone-2" class="joystick-base">
-                        <div id="joystick-knob-2" class="joystick-knob"></div>
+        <div id="joystick-zone-2" class="joystick-base">
+            <div id="joystick-knob-2" class="joystick-knob"></div>
                     </div>
                     <p class="joystick-label">Position (X/Z)</p>
-                </div>
-                
-                <label>Height (Y) <span id="transYValue" class="val-display">0.0</span></label>
-                <input id="trans_y" type="range" min="-2" max="0" step="0.1" value="0" />
-            </div>
+        </div>
+        
+        <label>Height (Y)</label>
+        <div class="slider-container">
+            <input id="trans_y" type="range" min="-2" max="0" step="0.1" value="0" />
+            <span id="transYValue" class="val-display">0.0</span>
+        </div>
+    </div>
 
             <!-- Camera Control -->
-            <div class="control-group">
-                <h4>Camera Control</h4>
+    <div class="control-group">
+            <h4>Camera Control</h4>
                 <p class="info-text">Click & drag joystick to rotate camera view</p>
                 <div class="joystick-container">
-                    <div id="joystick-zone" class="joystick-base">
-                        <div id="joystick-knob" class="joystick-knob"></div>
-                    </div>
+            <div id="joystick-zone" class="joystick-base">
+                <div id="joystick-knob" class="joystick-knob"></div>
+      </div>
                     <p class="joystick-label">Camera Rotation</p>
                 </div>
                 
-                <label>Zoom <span id="zoomValue" class="val-display">0</span></label>
-                <input id="camZoom" type="range" min="-20" max="5" step="0.5" value="0" />
-            </div>
+        <label>Zoom</label>
+        <div class="slider-container">
+            <input id="camZoom" type="range" min="-20" max="5" step="0.5" value="0" />
+            <span id="zoomValue" class="val-display">0</span>
+        </div>     
+    </div>
 
             <!-- Animation Sequences -->
-            <div class="control-group">
-                <h4>Animation Sequences</h4>
-                <select id="rotationModeSelect">
-                    <option value="pick_and_place">Pick and Place</option>
-                    <option value="manual">Manual Control</option>
-                    <option value="full_sweep">Full Sweep Sequence</option>
-                    <option value="exercise">Exercise/Stretch</option>
-                    <option value="circular">Circular Motion</option>
-                    <option value="object_scan">Object Scan</option>
-                    <option value="arm_rotate">Continuous Rotate</option>
-                </select>
+    <div class="control-group">
+        <h4>Animation Sequences</h4>
+        <select id="rotationModeSelect">
+            <option value="pick_and_place">Pick and Place</option>
+            <option value="manual">Manual Control</option>
+            <option value="full_sweep">Full Sweep Sequence</option>
+            <option value="exercise">Exercise/Stretch</option>
+            <option value="circular">Circular Motion</option>
+            <option value="object_scan">Object Scan</option>
+            <option value="arm_rotate">Continuous Rotate</option>
+        </select>
                 <div class="button-group">
-                    <button id="applyRotationButton" class="btn-blue">Load Mode</button>
-                    <button id="playPauseButton" class="btn-green">Play/Pause</button>
-                </div>
+            <button id="applyRotationButton" class="btn-blue">Load Mode</button>
+            <button id="playPauseButton" class="btn-green">Play/Pause</button>
+        </div>
                 <button id="resetButton" class="btn-orange" style="width:100%; margin-top:10px;">Reset All</button>
-            </div>
+</div>
 
             <!-- Keyboard Shortcuts Info -->
             <div class="keyboard-info">
@@ -581,10 +757,10 @@
                 <p><kbd>Enter</kbd> - Reset All</p>
             </div>
         </div>
-    </div>
+</div>
 
     <!-- Shader Scripts -->
-    <script id="vertex-shader" type="x-shader/x-vertex">
+<script id="vertex-shader" type="x-shader/x-vertex">
 #version 300 es
 in vec4 aPosition;
 in vec4 aColor;
@@ -595,9 +771,9 @@ void main() {
     vColor = aColor;
     gl_Position = projectionMatrix * modelViewMatrix * aPosition;
 }
-    </script>
+</script>
 
-    <script id="fragment-shader" type="x-shader/x-fragment">
+<script id="fragment-shader" type="x-shader/x-fragment">
 #version 300 es
 precision mediump float;
 in vec4 vColor;
@@ -605,7 +781,7 @@ out vec4 fColor;
 void main() {
     fColor = vColor;
 }
-    </script>
+</script>
 
     <!-- External Scripts -->
     <script src="../Common/initShaders.js"></script>
