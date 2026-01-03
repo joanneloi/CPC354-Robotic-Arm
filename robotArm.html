@@ -730,6 +730,23 @@
         </div>     
     </div>
 
+            <!-- Destination Position Control -->
+    <div class="control-group" id="destinationControls" style="display: block;">
+        <h4>Drop Destination</h4>
+        <p class="info-text">Set where the object should be placed. A yellow square shows the destination.</p>
+        <label>Destination X Position</label>
+        <div class="slider-container">
+            <input id="destXSlider" type="range" min="-10" max="10" step="0.5" value="-4.0" />
+            <span id="destXValue" class="val-display">-4.0</span>
+        </div>
+        <label>Destination Z Position</label>
+        <div class="slider-container">
+            <input id="destZSlider" type="range" min="-10" max="10" step="0.5" value="5.0" />
+            <span id="destZValue" class="val-display">5.0</span>
+        </div>
+        <button id="setDestinationButton" class="btn-blue" style="width: 100%; margin-top: 10px;">Set Destination</button>
+    </div>
+
             <!-- Animation Sequences -->
     <div class="control-group">
         <h4>Animation Sequences</h4>

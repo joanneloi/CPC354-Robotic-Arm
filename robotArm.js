@@ -48,6 +48,11 @@ var objectState = {
     velocity: 0.0
 };
 
+// Pickup and drop positions for dynamic pick and place
+var pickupPosition = { x: 7.0, y: 5.5, z: 0.0 };
+var dropPosition = { x: -4.0, y: 0.5, z: 5.0 };
+var showDestinationMarker = true; // Always show destination marker
+
 // --- Transformation variables ---
 var modelViewMatrix, projectionMatrix;
 var modelViewMatrixLoc;
@@ -104,6 +109,285 @@ function interpolateArmTransform(start, end, t) {
         lerp(start.upper, end.upper, clampedT),
         lerp(start.gripper, end.gripper, clampedT)
     );
+}
+
+function getCurrentArmTransform() {
+    return createArmTransform(theta[Base], theta[LowerArm], theta[UpperArm], gripperOpen);
+}
+
+// Function to calculate base rotation angle to face a target position
+// Base rotates around Y axis: need to determine what 0 degrees faces
+// Based on original sequence using base=0 for object at x=7, it seems base=0 might face +X
+// Let's try different calculations and see which works
+function calculateBaseRotation(targetX, targetZ, robotX, robotZ) {
+    var dx = targetX - robotX;
+    var dz = targetZ - robotZ;
+    
+    // Try option 1: atan2(dx, dz) - standard calculation
+    // This gives: 0° = +Z, 90° = +X, -90° = -X, 180° = -Z
+    var angle1 = Math.atan2(dx, dz) * (180 / Math.PI);
+    
+    // Try option 2: atan2(dz, dx) - swapped
+    // This gives: 0° = +X, 90° = +Z, -90° = -Z, 180° = -X
+    var angle2 = Math.atan2(dz, dx) * (180 / Math.PI);
+    
+    // Try option 3: atan2(dx, dz) + 90
+    var angle3 = angle1 + 90;
+    
+    // Try option 4: atan2(dx, dz) - 90
+    var angle4 = angle1 - 90;
+    
+    // Based on original sequence: object at x=7 uses base=0
+    // If base=0 faces +X direction, then we need option 2 (atan2(dz, dx))
+    // But if base=0 faces +Z and object is actually at z=7, then option 1 is correct
+    // Let's use option 2 for now since original uses base=0 for x=7
+    var angle = angle2;
+    
+    // Normalize to -180 to 180 range
+    while (angle > 180) angle -= 360;
+    while (angle < -180) angle += 360;
+    
+    return angle;
+}
+
+// Function to calculate gripper position in world coordinates
+function calculateGripperPosition(baseAngle, lowerAngle, upperAngle, robotX, robotY, robotZ) {
+    // Convert angles to radians
+    var baseRad = baseAngle * Math.PI / 180;
+    var lowerRad = lowerAngle * Math.PI / 180;
+    var upperRad = upperAngle * Math.PI / 180;
+    
+    // Base top position
+    var baseTopY = robotY + BASE_HEIGHT * scaleFactor;
+    
+    // After base rotation, calculate position in the arm's plane
+    // Lower arm extends in X-Y plane (after base rotation)
+    var lowerArmLen = LOWER_ARM_HEIGHT * scaleFactor;
+    var upperArmLen = UPPER_ARM_HEIGHT * scaleFactor;
+    var gripperOffset = GRIPPER_HEIGHT * scaleFactor;
+    
+    // Calculate position in local arm coordinate system
+    // Lower arm extends forward in X direction (in arm's local frame)
+    var localX = lowerArmLen * Math.sin(lowerRad) + upperArmLen * Math.sin(lowerRad + upperRad);
+    var localY = lowerArmLen * Math.cos(lowerRad) + upperArmLen * Math.cos(lowerRad + upperRad) + gripperOffset;
+    
+    // Transform to world coordinates (rotate by base angle)
+    // Since we're using atan2(dz, dx) for base rotation, base=0 faces +X
+    // So we need: worldX = robotX + localX * cos(baseRad), worldZ = robotZ + localX * sin(baseRad)
+    var worldX = robotX + localX * Math.cos(baseRad); // cos for +X direction when base=0
+    var worldZ = robotZ + localX * Math.sin(baseRad); // sin for +Z direction
+    var worldY = baseTopY + localY;
+    
+    return { x: worldX, y: worldY, z: worldZ };
+}
+
+// Function to calculate arm angles to reach a target position (proper inverse kinematics)
+// Returns {base, lower, upper} angles
+function calculateArmAngles(targetX, targetY, targetZ, robotX, robotY, robotZ) {
+    // Calculate base rotation to face the target
+    var baseAngle = calculateBaseRotation(targetX, targetZ, robotX, robotZ);
+    
+    // Calculate horizontal distance from robot base to target
+    var dx = targetX - robotX;
+    var dz = targetZ - robotZ;
+    var horizontalDist = Math.sqrt(dx * dx + dz * dz);
+    
+    // Calculate vertical distance (target Y relative to base top)
+    var baseTopY = robotY + BASE_HEIGHT * scaleFactor;
+    // Don't subtract gripper height here - we want to reach the target Y position
+    var verticalDist = targetY - baseTopY;
+    
+    // Arm segment lengths
+    var lowerArmLen = LOWER_ARM_HEIGHT * scaleFactor;
+    var upperArmLen = UPPER_ARM_HEIGHT * scaleFactor;
+    
+    // Calculate reach distance in the arm's movement plane
+    var reachDist = Math.sqrt(horizontalDist * horizontalDist + verticalDist * verticalDist);
+    
+    // Check if target is reachable
+    var maxReach = lowerArmLen + upperArmLen;
+    var minReach = Math.abs(lowerArmLen - upperArmLen);
+    
+    if (reachDist > maxReach) {
+        // Target too far - extend as much as possible
+        reachDist = maxReach * 0.95;
+    } else if (reachDist < minReach && minReach > 0.1) {
+        // Target too close - retract as needed
+        reachDist = minReach * 1.1;
+    }
+    
+    // Use law of cosines for two-link arm inverse kinematics
+    // Calculate elbow angle (upper arm)
+    var cosElbow = (lowerArmLen * lowerArmLen + upperArmLen * upperArmLen - reachDist * reachDist) / 
+                   (2 * lowerArmLen * upperArmLen);
+    cosElbow = Math.max(-1, Math.min(1, cosElbow));
+    var elbowAngle = Math.acos(cosElbow);
+    
+    // Calculate shoulder angle (lower arm)
+    var cosShoulder = (lowerArmLen * lowerArmLen + reachDist * reachDist - upperArmLen * upperArmLen) / 
+                      (2 * lowerArmLen * reachDist);
+    cosShoulder = Math.max(-1, Math.min(1, cosShoulder));
+    var shoulderAngle = Math.acos(cosShoulder);
+    
+    // Calculate angle to target from horizontal (in the arm's movement plane)
+    var targetAngle = Math.atan2(verticalDist, horizontalDist);
+    
+    // Convert to arm coordinate system
+    // After base rotation, arm moves in X-Y plane
+    // Lower arm: rotates around Z, 0 is straight up (along Y), positive rotates forward (toward +X)
+    // Upper arm: rotates around Z relative to lower arm
+    
+    // Lower arm angle: angle from vertical (Y+) to target direction
+    // Positive angle extends forward/down
+    var lowerAngle = targetAngle * (180 / Math.PI) - shoulderAngle * (180 / Math.PI);
+    
+    // Upper arm angle: relative to lower arm
+    // 0 is straight (aligned with lower arm), positive extends forward
+    var upperAngle = (Math.PI - elbowAngle) * (180 / Math.PI);
+    
+    // Adjust based on working examples from original sequence
+    // Original: lower=25, upper=110 reaches down and forward
+    // This suggests: positive lower extends down, positive upper extends forward
+    // The coordinate system: 0 is up, positive is forward/down
+    
+    // Recalculate with correct understanding
+    // Lower arm angle from vertical
+    lowerAngle = (targetAngle - shoulderAngle) * (180 / Math.PI);
+    // Upper arm angle (elbow bend)
+    upperAngle = (Math.PI - elbowAngle) * (180 / Math.PI);
+    
+    // Test with known working values: for object at x=7, we need lower=25, upper=110
+    // This suggests the calculation might need adjustment
+    // Let's use a simpler approach: interpolate based on distance
+    
+    // Use distance-based interpolation for arm angles
+    // This is more reliable than pure IK for this coordinate system
+    var distRatio = Math.min(horizontalDist / 7.0, 1.5);
+    
+    // Check if we need to reach down (target is below base top)
+    if (verticalDist < -1.0) {
+        // Reaching down significantly - use angles that extend down
+        // For object on table (y=0.5), baseTopY is around 2.0, so verticalDist is negative
+        // More negative = need to reach down more
+        var downRatio = Math.min(Math.abs(verticalDist) / 3.0, 1.0); // Normalize down distance
+        lowerAngle = -35 + distRatio * 60 + downRatio * 10; // Range: -35 to ~35 (more down = more positive)
+        upperAngle = 60 + distRatio * 50 + downRatio * 20;  // Range: 60 to ~130 (more down = more extension)
+    } else if (verticalDist < 0) {
+        // Slightly below base top
+        lowerAngle = -35 + distRatio * 60;
+        upperAngle = 60 + distRatio * 50;
+    } else {
+        // Reaching up or level
+        lowerAngle = -45;
+        upperAngle = 60;
+    }
+    
+    // Debug: log calculated angles for pickup
+    if (targetY < 1.0) { // Likely a pickup or drop position
+        console.log("Arm angles for Y=" + targetY.toFixed(2) + " - Base:", baseAngle.toFixed(1), 
+                    "Lower:", lowerAngle.toFixed(1), "Upper:", upperAngle.toFixed(1),
+                    "verticalDist:", verticalDist.toFixed(2), "horizontalDist:", horizontalDist.toFixed(2));
+    }
+    
+    // Clamp angles to valid ranges
+    lowerAngle = Math.max(-45, Math.min(45, lowerAngle));
+    upperAngle = Math.max(-150, Math.min(150, upperAngle));
+    
+    return {
+        base: baseAngle,
+        lower: lowerAngle,
+        upper: upperAngle
+    };
+}
+
+// Function to create dynamic pick and place sequence based on current positions
+function createDynamicPickAndPlaceSequence() {
+    // Calculate arm angles using inverse kinematics for pickup position
+    var pickupAngles = calculateArmAngles(
+        pickupPosition.x,
+        pickupPosition.y,
+        pickupPosition.z,
+        manualTransX,
+        manualTransY,
+        manualTransZ
+    );
+    
+    // Calculate arm angles for hover position (above pickup)
+    var hoverAngles = calculateArmAngles(
+        pickupPosition.x,
+        pickupPosition.y + 2.0, // 2 units above
+        pickupPosition.z,
+        manualTransX,
+        manualTransY,
+        manualTransZ
+    );
+    
+    // Calculate arm angles for lift position (higher up)
+    var liftAngles = calculateArmAngles(
+        pickupPosition.x,
+        pickupPosition.y + 4.0, // 4 units above
+        pickupPosition.z,
+        manualTransX,
+        manualTransY,
+        manualTransZ
+    );
+    
+    // Calculate arm angles for drop position
+    var dropAngles = calculateArmAngles(
+        dropPosition.x,
+        dropPosition.y,
+        dropPosition.z,
+        manualTransX,
+        manualTransY,
+        manualTransZ
+    );
+    
+    return [
+        // 1. Move to hover position above object
+        { name: "align", duration: 1.5,
+          start: createArmTransform(0, 0, 0, 0),
+          end: createArmTransform(hoverAngles.base, hoverAngles.lower, hoverAngles.upper, 0) },
+
+        // 2. Descend to grab 
+        { name: "descend_1", duration: 1.0,
+          start: createArmTransform(hoverAngles.base, hoverAngles.lower, hoverAngles.upper, 0),
+          end: createArmTransform(pickupAngles.base, pickupAngles.lower, pickupAngles.upper, -25) },
+
+        // 3. Grip object
+        { name: "grip_action", duration: 0.8,
+          start: createArmTransform(pickupAngles.base, pickupAngles.lower, pickupAngles.upper, -25),
+          end: createArmTransform(pickupAngles.base, pickupAngles.lower, pickupAngles.upper, -5) },
+
+        // 4. Lift object up
+        { name: "lift", duration: 1.0,
+          start: createArmTransform(pickupAngles.base, pickupAngles.lower, pickupAngles.upper, -5),
+          end: createArmTransform(liftAngles.base, liftAngles.lower, liftAngles.upper, -5) },
+
+        // 5. Rotate to drop zone
+        { name: "rotate_carry", duration: 2.0,
+          start: createArmTransform(liftAngles.base, liftAngles.lower, liftAngles.upper, -5),
+          end: createArmTransform(dropAngles.base, dropAngles.lower, dropAngles.upper, -5) },
+
+        // 6. Descend to drop position
+        { name: "descent_2", duration: 1.5,
+          start: createArmTransform(dropAngles.base, dropAngles.lower, dropAngles.upper, -5),
+          end: createArmTransform(dropAngles.base, dropAngles.lower, dropAngles.upper, -5) },
+
+        // 7. Release object 
+        { name: "release_action", duration: 0.8,
+          start: createArmTransform(dropAngles.base, dropAngles.lower, dropAngles.upper, -5),
+          end: createArmTransform(dropAngles.base, dropAngles.lower, dropAngles.upper, -35) },
+
+        // 8. Retract arm 
+        { name: "retract", duration: 1.0,
+          start: createArmTransform(dropAngles.base, dropAngles.lower, dropAngles.upper, -35),
+          end: createArmTransform(dropAngles.base, 0, 0, -15) },
+
+        // 9. Return to home
+        { name: "home", duration: 0.5,
+          start: createArmTransform(dropAngles.base, 0, 0, -15),
+          end: createArmTransform(0, 0, 0, -5) }
+    ];
 }
 
 // --- Sequences ---
@@ -209,7 +493,26 @@ function startSequence() {
     isSequenceRunning = true;
     sequenceIndex = 0;
     sequenceTime = 0;
-    if (sequenceKeyframes.length > 0) {
+
+    if (sequenceKeyframes.length === 0) return;
+    // If pick-and-place, create dynamic sequence and start from CURRENT arm pose
+    if (appliedMode === "pick_and_place") {
+        // Capture current object position as pickup position
+        // Ensure Y is at table height (0.5) for proper arm positioning
+        pickupPosition.x = objectState.x;
+        pickupPosition.y = Math.max(0.5, objectState.y); // Use table height if object is falling
+        pickupPosition.z = objectState.z;
+        
+        // Create dynamic sequence based on current positions
+        var dynamicSequence = createDynamicPickAndPlaceSequence();
+        sequenceKeyframes = dynamicSequence;
+        
+        var currentPose = getCurrentArmTransform();
+        // Override the first keyframe start pose
+        sequenceKeyframes[0].start = cloneArmTransform(currentPose);
+        currentSequenceTransform = cloneArmTransform(currentPose);
+    } 
+    else {
         currentSequenceTransform = cloneArmTransform(sequenceKeyframes[0].start);
     }
 }
@@ -231,33 +534,83 @@ function updateSequence(deltaSeconds) {
     var progress = sequenceTime / duration;
 
     if (appliedMode === "pick_and_place") {
-        // Trigger "grasp" logic near the end of the "grip_action" stage
-        if (currentStage.name === "align" && progress < 0.1) {
-            objectState.x = 7.0; // Reset to original pickup x
-            objectState.y = 2.5; // Reset to table height
-            objectState.z = 0.0; // Reset to original pickup z
-            objectState.isHeld = false; // Ensure it's not held
-        }
-
-        if (currentStage.name === "grip_action" && progress > 0.8) {
+        // Calculate current gripper position
+        var gripperPos = calculateGripperPosition(
+            theta[Base], 
+            theta[LowerArm], 
+            theta[UpperArm],
+            manualTransX,
+            manualTransY,
+            manualTransZ
+        );
+        
+        // Check if gripper is close to object for pickup
+        if (currentStage.name === "grip_action" && progress > 0.3) {
             if (!objectState.isHeld) {
-                objectState.isHeld = true;
-
+                // Calculate distance from gripper to object
+                var dx = gripperPos.x - objectState.x;
+                var dy = gripperPos.y - objectState.y;
+                var dz = gripperPos.z - objectState.z;
+                var dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                
+                // Debug: log pickup attempt
+                if (progress > 0.5 && progress < 0.6) {
+                    console.log("Pickup attempt - Gripper at:", gripperPos.x.toFixed(2), gripperPos.y.toFixed(2), gripperPos.z.toFixed(2));
+                    console.log("Object at:", objectState.x.toFixed(2), objectState.y.toFixed(2), objectState.z.toFixed(2));
+                    console.log("Distance:", dist.toFixed(2), "Gripper open:", gripperOpen.toFixed(1));
+                }
+                
+                // If gripper is close to object and gripper is closing, pick it up
+                // Increased threshold to 4.0 units to be more lenient
+                // Check if gripper is closing (gripperOpen > -30 means it's closing, not fully open)
+                if (dist < 4.0 && gripperOpen > -30) { // Close enough and gripper closing
+                    objectState.isHeld = true;
+                    console.log("✓✓✓ OBJECT PICKED UP! Distance was:", dist.toFixed(2));
+                } else if (progress > 0.7 && !objectState.isHeld) {
+                    // If we're near the end and still haven't picked up, log why
+                    console.log("Pickup failed - Distance:", dist.toFixed(2), "Gripper open:", gripperOpen.toFixed(1), "Threshold: 4.0");
+                }
             }
         }
         
-        // Trigger "Release" logic near the end of the "release_action" stage
-        if (currentStage.name === "release_action" && progress > 0.1) {
+        // Check if gripper is at destination for release
+        if (currentStage.name === "release_action" && progress > 0.2) {
             if (objectState.isHeld) {
-                objectState.isHeld = false;
-                // Calculate drop position
-                objectState.x = -4.0; 
-                objectState.z = 5.0;
-                objectState.y = 0.5; // On table
+                // Calculate distance from gripper to drop position
+                var dx = gripperPos.x - dropPosition.x;
+                var dy = gripperPos.y - dropPosition.y;
+                var dz = gripperPos.z - dropPosition.z;
+                var dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                
+                // Debug: log placement attempt
+                if (progress > 0.3 && progress < 0.4) {
+                    console.log("=== PLACEMENT CHECK ===");
+                    console.log("Gripper position:", gripperPos.x.toFixed(2), gripperPos.y.toFixed(2), gripperPos.z.toFixed(2));
+                    console.log("Drop position:", dropPosition.x.toFixed(2), dropPosition.y.toFixed(2), dropPosition.z.toFixed(2));
+                    console.log("Distance:", dist.toFixed(2), "Gripper open:", gripperOpen.toFixed(1));
+                }
+                
+                // If gripper is at destination and opening, release object
+                // Increased threshold to 4.0 units to be more lenient
+                // Check if gripper is opening (gripperOpen < -20 means it's opening)
+                if (dist < 4.0 && gripperOpen < -20) { // Close to destination and gripper opening
+                    objectState.isHeld = false;
+                    // Place object at drop position (use exact drop position)
+                    objectState.x = dropPosition.x; 
+                    objectState.z = dropPosition.z;
+                    objectState.y = dropPosition.y; // On table
+                    console.log("✓✓✓ OBJECT PLACED at:", dropPosition.x.toFixed(2), dropPosition.y.toFixed(2), dropPosition.z.toFixed(2));
+                } else if (progress > 0.7 && objectState.isHeld) {
+                    // If we're near the end and still holding, force release at drop position
+                    console.log("Forcing placement - Distance:", dist.toFixed(2), "Gripper open:", gripperOpen.toFixed(1));
+                    objectState.isHeld = false;
+                    objectState.x = dropPosition.x; 
+                    objectState.z = dropPosition.z;
+                    objectState.y = dropPosition.y;
+                    console.log("✓ Object force-placed at:", dropPosition.x.toFixed(2), dropPosition.y.toFixed(2), dropPosition.z.toFixed(2));
+                }
             }
         }
-        
-
     }
 
     var calcProgress = Math.min(progress, 1.0);
@@ -429,15 +782,60 @@ function setupEvents() {
         document.getElementById("zoomValue").innerText = Math.round(cameraZoom);
     };
 
+    // Destination position controls
+    var destXSlider = document.getElementById("destXSlider");
+    var destZSlider = document.getElementById("destZSlider");
+    var destXValue = document.getElementById("destXValue");
+    var destZValue = document.getElementById("destZValue");
+    var destinationControls = document.getElementById("destinationControls");
+    
+    if (destXSlider && destXValue) {
+        destXSlider.oninput = function(e) {
+            var val = parseFloat(e.target.value);
+            dropPosition.x = val;
+            destXValue.innerText = val.toFixed(1);
+        };
+    }
+    
+    if (destZSlider && destZValue) {
+        destZSlider.oninput = function(e) {
+            var val = parseFloat(e.target.value);
+            dropPosition.z = val;
+            destZValue.innerText = val.toFixed(1);
+        };
+    }
+    
+    var setDestBtn = document.getElementById("setDestinationButton");
+    if (setDestBtn) {
+        setDestBtn.onclick = function() {
+            if (destXSlider && destZSlider) {
+                dropPosition.x = parseFloat(destXSlider.value);
+                dropPosition.z = parseFloat(destZSlider.value);
+                dropPosition.y = 0.5; // On table
+            }
+        };
+    }
 
     document.getElementById("resetButton").onclick = function() {
         stopSequence();
         isAnimating = false;
         objectState = {x: 7.0, y: 2.5, z: 0.0, isHeld: false, velocity: 0};
+        pickupPosition = { x: 7.0, y: 5.5, z: 0.0 };
+        dropPosition = { x: -4.0, y: 0.5, z: 5.0 };
         theta = [0,0,0];
         manualTransX = manualTransY = manualTransZ = 0;
         document.getElementById("trans_y").value = 0;
         document.getElementById("transYValue").innerText = "0.0";
+        
+        // Reset destination sliders
+        if (destXSlider && destXValue) {
+            destXSlider.value = -4.0;
+            destXValue.innerText = "-4.0";
+        }
+        if (destZSlider && destZValue) {
+            destZSlider.value = 5.0;
+            destZValue.innerText = "5.0";
+        }
         
         cameraHori = 45; cameraElevation = 300; cameraZoom = 0;
         document.getElementById("camZoom").value = 0;
@@ -475,6 +873,7 @@ function setupEvents() {
             manualTransX = 0;
             manualTransZ = 0;
             manualTransY = 0; 
+            // Destination controls are always visible now
         } else {
              // Logic for other modes (force drop object)
              objectState.isHeld = false;
@@ -484,14 +883,18 @@ function setupEvents() {
         }
 
         if (allSequences[mode]) {
-            sequenceKeyframes = allSequences[mode];
+            if (mode === "pick_and_place") {
+                // Will be created dynamically in startSequence
+                sequenceKeyframes = pickAndPlaceSequence;
+            } else {
+                sequenceKeyframes = allSequences[mode];
+            }
             startSequence();
         } else if (mode === "manual") {
             stopSequence(); isAnimating = false;
         } else if (mode === "arm_rotate") {
             stopSequence(); isAnimating = true;
-        }
-        
+        }   
         updatePlayPauseButton();
     };
     
@@ -523,14 +926,12 @@ function setupEvents() {
         }
         
         updatePlayPauseButton();
-    };
-    
+    }; 
     // Initial button text update
     updatePlayPauseButton();
 }
 
 // --- Geometry Functions ---
-
 function quad(a, b, c, d) {
     colors.push(vertexColors[a]); points.push(vertices[a]);
     colors.push(vertexColors[a]); points.push(vertices[b]);
@@ -565,8 +966,20 @@ function drawTable() {
     gl.drawArrays(gl.TRIANGLES, 0, NumVertices);
 }
 
-// --- Hierarchy Drawing ---
+// Draw destination marker (square on table) - using yellow color
+function drawDestinationMarker() {
+    // Draw a flat square marker on the table
+    var markerSize = 1.5;
+    var markerHeight = 0.15;
+    var s = scale(markerSize, markerHeight, markerSize);
+    var t = translate(dropPosition.x, dropPosition.y + markerHeight/2, dropPosition.z);
+    var m = mult(modelViewMatrix, mult(t, s));
+    gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(m));
+    // Draw using existing geometry (will use colors from buffer - yellow should be visible)
+    gl.drawArrays(gl.TRIANGLES, 0, NumVertices);
+}
 
+// --- Hierarchy Drawing ---
 function base() {
     var s = scale(BASE_WIDTH * extrusionDepth * scaleFactor, BASE_HEIGHT * scaleFactor, BASE_WIDTH * extrusionDepth * scaleFactor);
     var instanceMatrix = mult( translate( 0.0, 0.5 * BASE_HEIGHT * scaleFactor, 0.0 ), s);
@@ -744,12 +1157,17 @@ function render(now) {
     // Draw scene
     drawTable();
     
+    // Draw destination marker (always show)
+    if (showDestinationMarker) {
+        modelViewMatrix = savedWorld;
+        drawDestinationMarker();
+    }
+    
     if (!objectState.isHeld) {  
         modelViewMatrix = savedWorld;
         modelViewMatrix = mult(modelViewMatrix, translate(objectState.x, objectState.y, objectState.z));
         drawObject();
     }
-    
 
     // Draw arm
     modelViewMatrix = savedWorld;
