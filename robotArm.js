@@ -74,6 +74,9 @@ var camJoyX = 0;
 var camJoyY = 0;
 var robotJoyX = 0;
 var robotJoyZ = 0;
+// Destination plate joystick inputs
+var plateJoyX = 0;
+var plateJoyZ = 0;
 
 // Animation state
 var lastFrameTime = 0;
@@ -635,24 +638,14 @@ function setupEvents() {
         var plateXEl = document.getElementById("plateX");
         var plateZEl = document.getElementById("plateZ");
         var plateSizeEl = document.getElementById("plateSize");
+        var plateXValEl = document.getElementById("plateXValue");
+        var plateZValEl = document.getElementById("plateZValue");
 
-        if (plateXEl) {
-            plateXEl.value = destinationPlate.x;
-            document.getElementById("plateXValue").innerText = destinationPlate.x.toFixed(1);
-            plateXEl.oninput = function(e) {
-                destinationPlate.x = parseFloat(e.target.value);
-                document.getElementById("plateXValue").innerText = destinationPlate.x.toFixed(1);
-            };
-        }
-
-        if (plateZEl) {
-            plateZEl.value = destinationPlate.z;
-            document.getElementById("plateZValue").innerText = destinationPlate.z.toFixed(1);
-            plateZEl.oninput = function(e) {
-                destinationPlate.z = parseFloat(e.target.value);
-                document.getElementById("plateZValue").innerText = destinationPlate.z.toFixed(1);
-            };
-        }
+        // Plate X/Z are now controlled by joystick; if sliders exist (older UI), keep them in sync.
+        if (plateXEl) plateXEl.value = destinationPlate.x;
+        if (plateZEl) plateZEl.value = destinationPlate.z;
+        if (plateXValEl) plateXValEl.innerText = destinationPlate.x.toFixed(1);
+        if (plateZValEl) plateZValEl.innerText = destinationPlate.z.toFixed(1);
 
         if (plateSizeEl) {
             // width/depth are kept equal for a square plate
@@ -736,6 +729,12 @@ function setupEvents() {
         robotJoyX = x;
         robotJoyZ = y; 
     });
+
+    // Joystick 3: Destination Plate Movement (Updates plateJoy variables)
+    createJoystick("joystick-knob-plate", "joystick-zone-plate", function(x, y) {
+        plateJoyX = x;
+        plateJoyZ = y;
+    });
   
     // Zoom slider
     document.getElementById("camZoom").oninput = function(e) { 
@@ -762,8 +761,12 @@ function setupEvents() {
         var plateXEl = document.getElementById("plateX");
         var plateZEl = document.getElementById("plateZ");
         var plateSizeEl = document.getElementById("plateSize");
-        if (plateXEl) { plateXEl.value = destinationPlate.x; document.getElementById("plateXValue").innerText = destinationPlate.x.toFixed(1); }
-        if (plateZEl) { plateZEl.value = destinationPlate.z; document.getElementById("plateZValue").innerText = destinationPlate.z.toFixed(1); }
+        var plateXValEl = document.getElementById("plateXValue");
+        var plateZValEl = document.getElementById("plateZValue");
+        if (plateXEl) plateXEl.value = destinationPlate.x;
+        if (plateZEl) plateZEl.value = destinationPlate.z;
+        if (plateXValEl) plateXValEl.innerText = destinationPlate.x.toFixed(1);
+        if (plateZValEl) plateZValEl.innerText = destinationPlate.z.toFixed(1);
         if (plateSizeEl) { plateSizeEl.value = destinationPlate.width; document.getElementById("plateSizeValue").innerText = destinationPlate.width.toFixed(1); }
         
         cameraHori = 45; cameraElevation = 300; cameraZoom = 0;
@@ -1065,6 +1068,27 @@ function render(now) {
         if (manualTransZ > 10) manualTransZ = 10;
         if (manualTransZ < -10) manualTransZ = -10;
     }
+    }
+
+    // Destination Plate Joystick Logic (always available)
+    if (plateJoyX !== 0 || plateJoyZ !== 0) {
+        var plateSpeed = 5.0;
+        destinationPlate.x += plateJoyX * plateSpeed * deltaSeconds;
+        destinationPlate.z += plateJoyZ * plateSpeed * deltaSeconds;
+
+        // Keep within slider/table limits
+        destinationPlate.x = clamp(destinationPlate.x, -10, 10);
+        destinationPlate.z = clamp(destinationPlate.z, -10, 10);
+
+        // Sync destination plate sliders/labels if present
+        var plateXEl = document.getElementById("plateX");
+        var plateZEl = document.getElementById("plateZ");
+        var plateXVal = document.getElementById("plateXValue");
+        var plateZVal = document.getElementById("plateZValue");
+        if (plateXEl) plateXEl.value = destinationPlate.x;
+        if (plateZEl) plateZEl.value = destinationPlate.z;
+        if (plateXVal) plateXVal.innerText = destinationPlate.x.toFixed(1);
+        if (plateZVal) plateZVal.innerText = destinationPlate.z.toFixed(1);
     }
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
 

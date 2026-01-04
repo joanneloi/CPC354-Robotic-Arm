@@ -716,17 +716,18 @@
     <div class="control-group">
         <h4>Destination Plate</h4>
         <p class="info-text">Adjust where the object is placed</p>
-
-        <label>Plate X (-10 to 10)</label>
-        <div class="slider-container">
-            <input id="plateX" type="range" min="-10" max="10" step="0.1" value="-4.0" />
-            <span id="plateXValue" class="val-display">-4.0</span>
+        <p class="info-text">Drag joystick to move destination plate (X / Z axes)</p>
+        <div class="joystick-container">
+            <div id="joystick-zone-plate" class="joystick-base">
+                <div id="joystick-knob-plate" class="joystick-knob"></div>
+            </div>
+            <p class="joystick-label">Plate (X/Z)</p>
         </div>
 
-        <label>Plate Z (-10 to 10)</label>
+        <label>Plate Position</label>
         <div class="slider-container">
-            <input id="plateZ" type="range" min="-10" max="10" step="0.1" value="5.0" />
-            <span id="plateZValue" class="val-display">5.0</span>
+            <span class="val-display">X: <span id="plateXValue">-4.0</span></span>
+            <span class="val-display">Z: <span id="plateZValue">5.0</span></span>
         </div>
 
         <label>Plate Size (1.0 to 6.0)</label>
