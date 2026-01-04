@@ -96,7 +96,8 @@ var pickAndPlaceDynamic = {
     carryAngleApplied: false,
     carryAngle: 0,
     pickupPoseApplied: false,
-    pickupAngle: 0
+    pickupAngle: 0,
+    dropMoveApplied: false
 };
 
 function normalizeDegrees180(angleDeg) {
@@ -253,6 +254,13 @@ var pickBaseMove = {
     endX: 0, endY: 0, endZ: 0
 };
 
+// Smooth base repositioning for drop phase (moves gripper near destination plate)
+var dropBaseMove = {
+    active: false,
+    startX: 0, startY: 0, startZ: 0,
+    endX: 0, endY: 0, endZ: 0
+};
+
 function getCurrentArmTransform() {
     return createArmTransform(theta[Base], theta[LowerArm], theta[UpperArm], gripperOpen);
 }
@@ -388,8 +396,10 @@ function startSequence() {
     sequenceTime = 0;
     lastSequenceIndexForStageInit = -1;
     pickBaseMove.active = false;
+    dropBaseMove.active = false;
     pickAndPlaceDynamic.carryAngleApplied = false;
     pickAndPlaceDynamic.pickupPoseApplied = false;
+    pickAndPlaceDynamic.dropMoveApplied = false;
     if (sequenceKeyframes.length > 0) {
         currentSequenceTransform = cloneArmTransform(sequenceKeyframes[0].start);
     }
@@ -427,6 +437,8 @@ function updateSequence(deltaSeconds) {
                 pickBaseMove.endZ = target.z;
                 // New run/cycle: clear any previously applied carry target
                 pickAndPlaceDynamic.carryAngleApplied = false;
+                pickAndPlaceDynamic.dropMoveApplied = false;
+                dropBaseMove.active = false;
                 // Apply a pickup base angle so we can keep the robot away from edges.
                 // This rotates the whole pickup motion toward the object while preserving the same keyframes.
                 if (!pickAndPlaceDynamic.pickupPoseApplied) {
@@ -447,6 +459,29 @@ function updateSequence(deltaSeconds) {
                 applyPickAndPlaceCarryAngle(sequenceKeyframes, carryAngle);
                 pickAndPlaceDynamic.carryAngleApplied = true;
             }
+
+            // During carry rotation, ALSO translate the robot base so the gripper gets near the destination plate
+            // before the descent/release stages. We move the base so the plate ends up roughly at local x=+7.
+            if (currentStage.name === "rotate_carry" && !pickAndPlaceDynamic.dropMoveApplied) {
+                var desiredReach = PICK_RELATIVE_OFFSET.x; // reuse the same reach distance as pickup keyframes
+                var rad = pickAndPlaceDynamic.carryAngle * Math.PI / 180;
+                var dropX = destinationPlate.x - desiredReach * Math.cos(rad);
+                var dropZ = destinationPlate.z - desiredReach * Math.sin(rad);
+
+                // Keep within table limits used elsewhere
+                dropX = clamp(dropX, -10, 10);
+                dropZ = clamp(dropZ, -10, 10);
+
+                dropBaseMove.active = true;
+                dropBaseMove.startX = manualTransX;
+                dropBaseMove.startY = manualTransY;
+                dropBaseMove.startZ = manualTransZ;
+                dropBaseMove.endX = dropX;
+                dropBaseMove.endY = manualTransY;
+                dropBaseMove.endZ = dropZ;
+
+                pickAndPlaceDynamic.dropMoveApplied = true;
+            }
         }
     }
 
@@ -462,6 +497,17 @@ function updateSequence(deltaSeconds) {
         manualTransZ = pickBaseMove.startZ + (pickBaseMove.endZ - pickBaseMove.startZ) * t;
         if (t >= 1.0) {
             pickBaseMove.active = false;
+        }
+    }
+
+    // Smooth base reposition during carry stage (drop mode)
+    if (appliedMode === "pick_and_place" && currentStage.name === "rotate_carry" && dropBaseMove.active) {
+        var t2 = Math.max(0, Math.min(1, progress));
+        manualTransX = dropBaseMove.startX + (dropBaseMove.endX - dropBaseMove.startX) * t2;
+        manualTransY = dropBaseMove.startY + (dropBaseMove.endY - dropBaseMove.startY) * t2;
+        manualTransZ = dropBaseMove.startZ + (dropBaseMove.endZ - dropBaseMove.startZ) * t2;
+        if (t2 >= 1.0) {
+            dropBaseMove.active = false;
         }
     }
 
