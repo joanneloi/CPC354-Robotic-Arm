@@ -1,4 +1,7 @@
 "use strict";
+// NOTE: This file has been split into multiple scripts under `src/`.
+// `robotArm.html` now loads `src/state.js`, `src/render.js`, etc.
+// This legacy file is kept for reference but is not included by default.
 
 var canvas, gl, program;
 
