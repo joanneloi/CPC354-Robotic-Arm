@@ -712,6 +712,30 @@
         </div>
     </div>
 
+            <!-- Destination Plate Control -->
+    <div class="control-group">
+        <h4>Destination Plate</h4>
+        <p class="info-text">Adjust where the object is placed</p>
+
+        <label>Plate X (-10 to 10)</label>
+        <div class="slider-container">
+            <input id="plateX" type="range" min="-10" max="10" step="0.1" value="-4.0" />
+            <span id="plateXValue" class="val-display">-4.0</span>
+        </div>
+
+        <label>Plate Z (-10 to 10)</label>
+        <div class="slider-container">
+            <input id="plateZ" type="range" min="-10" max="10" step="0.1" value="5.0" />
+            <span id="plateZValue" class="val-display">5.0</span>
+        </div>
+
+        <label>Plate Size (1.0 to 6.0)</label>
+        <div class="slider-container">
+            <input id="plateSize" type="range" min="1.0" max="6.0" step="0.1" value="2.0" />
+            <span id="plateSizeValue" class="val-display">2.0</span>
+        </div>
+    </div>
+
             <!-- Camera Control -->
     <div class="control-group">
             <h4>Camera Control</h4>
@@ -730,23 +754,6 @@
         </div>     
     </div>
 
-            <!-- Destination Position Control -->
-    <div class="control-group" id="destinationControls" style="display: block;">
-        <h4>Drop Destination</h4>
-        <p class="info-text">Set where the object should be placed. A yellow square shows the destination.</p>
-        <label>Destination X Position</label>
-        <div class="slider-container">
-            <input id="destXSlider" type="range" min="-10" max="10" step="0.5" value="-4.0" />
-            <span id="destXValue" class="val-display">-4.0</span>
-        </div>
-        <label>Destination Z Position</label>
-        <div class="slider-container">
-            <input id="destZSlider" type="range" min="-10" max="10" step="0.5" value="5.0" />
-            <span id="destZValue" class="val-display">5.0</span>
-        </div>
-        <button id="setDestinationButton" class="btn-blue" style="width: 100%; margin-top: 10px;">Set Destination</button>
-    </div>
-
             <!-- Animation Sequences -->
     <div class="control-group">
         <h4>Animation Sequences</h4>
@@ -756,8 +763,7 @@
             <option value="full_sweep">Full Sweep Sequence</option>
             <option value="exercise">Exercise/Stretch</option>
             <option value="circular">Circular Motion</option>
-            <option value="object_scan">Object Scan</option>
-            <option value="arm_rotate">Continuous Rotate</option>
+
         </select>
                 <div class="button-group">
             <button id="applyRotationButton" class="btn-blue">Load Mode</button>
