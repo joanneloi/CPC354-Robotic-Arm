@@ -86,6 +86,182 @@ var sequenceIndex = 0;
 var sequenceTime = 0;
 var rotationDir = 1; 
 
+// --- Pick & Place helpers ---
+// The current pick-and-place keyframes were authored assuming the object is at (x=7, z=0)
+// relative to the robot base translation when base rotation is 0.
+var PICK_RELATIVE_OFFSET = { x: 7.0, z: 0.0, y: 0.0 };
+
+// Pick & Place dynamic targets (computed per run)
+var pickAndPlaceDynamic = {
+    carryAngleApplied: false,
+    carryAngle: 0,
+    pickupPoseApplied: false,
+    pickupAngle: 0
+};
+
+function normalizeDegrees180(angleDeg) {
+    var a = angleDeg;
+    while (a > 180) a -= 360;
+    while (a < -180) a += 360;
+    return a;
+}
+
+function clamp(val, min, max) {
+    return Math.max(min, Math.min(max, val));
+}
+
+function computeBaseAngleToTarget(baseX, baseZ, targetX, targetZ) {
+    var dx = targetX - baseX;
+    var dz = targetZ - baseZ;
+    // When base rotation is 0, the arm's "reach direction" is along +X in world space.
+    // So we need the yaw that points +X toward the target vector in the XZ plane.
+    var radians = Math.atan2(dz, dx);
+    return normalizeDegrees180(radians * 180 / Math.PI);
+}
+
+function applyPickAndPlacePickupPose(sequence, pickupAngle) {
+    if (!Array.isArray(sequence)) return;
+    for (var i = 0; i < sequence.length; i++) {
+        var stage = sequence[i];
+        if (!stage || !stage.name) continue;
+
+        // Drive the pickup portion to keep the same base rotation while reaching/gripping/lifting.
+        if (stage.name === "align") {
+            // Align stage rotates from current pose (seq[0].start) to pickupAngle
+            if (stage.end) stage.end.base = pickupAngle;
+        }
+        if (stage.name === "descend_1" || stage.name === "grip_action" || stage.name === "lift") {
+            if (stage.start) stage.start.base = pickupAngle;
+            if (stage.end) stage.end.base = pickupAngle;
+        }
+        // Ensure rotate_carry starts from the pickup angle (end will be set later dynamically).
+        if (stage.name === "rotate_carry") {
+            if (stage.start) stage.start.base = pickupAngle;
+        }
+    }
+}
+
+function applyPickAndPlaceCarryAngle(sequence, carryAngle) {
+    if (!Array.isArray(sequence)) return;
+    for (var i = 0; i < sequence.length; i++) {
+        var stage = sequence[i];
+        if (!stage || !stage.name) continue;
+
+        if (stage.name === "rotate_carry") {
+            // Rotate base from whatever it is now to the computed carry angle
+            if (stage.end) stage.end.base = carryAngle;
+        }
+
+        // Stages that should KEEP the base pointing at the destination
+        if (stage.name === "descent_2" || stage.name === "descend_3" || stage.name === "release_action" || stage.name === "retract") {
+            if (stage.start) stage.start.base = carryAngle;
+            if (stage.end) stage.end.base = carryAngle;
+        }
+
+        // Home should rotate back to 0 from the carry angle
+        if (stage.name === "home") {
+            if (stage.start) stage.start.base = carryAngle;
+            if (stage.end) stage.end.base = 0;
+        }
+    }
+}
+
+function computePickBasePoseForObject(obj, currentBaseX, currentBaseZ) {
+    // Keep the robot base a bit away from table edges so it doesn't end up "stuck" at the border.
+    // Table limits elsewhere are [-10, 10]. We reserve padding for the robot footprint + a margin.
+    var TABLE_MIN = -10, TABLE_MAX = 10;
+    var BASE_PADDING = 3.0; // tweak if you want the robot to go closer/further to the edges
+    var minX = TABLE_MIN + BASE_PADDING, maxX = TABLE_MAX - BASE_PADDING;
+    var minZ = TABLE_MIN + BASE_PADDING, maxZ = TABLE_MAX - BASE_PADDING;
+
+    // Desired pickup offset in robot-local space: (x=+7, z=0) from base to object.
+    var r = PICK_RELATIVE_OFFSET.x;
+
+    // Search candidate base yaw angles that keep base within padded bounds.
+    // Cost prefers minimal base movement and small yaw magnitude.
+    var best = null;
+    var stepDeg = 5; // smaller = smoother/more optimal, larger = faster
+    for (var ang = -180; ang <= 180; ang += stepDeg) {
+        var rad = ang * Math.PI / 180;
+        var bx = obj.x - r * Math.cos(rad);
+        var bz = obj.z - r * Math.sin(rad);
+
+        if (bx < minX || bx > maxX || bz < minZ || bz > maxZ) continue;
+
+        var dx = bx - currentBaseX;
+        var dz = bz - currentBaseZ;
+        var dist = Math.sqrt(dx * dx + dz * dz);
+
+        var yawPenalty = Math.abs(ang) * 0.01; // small preference for keeping yaw near 0
+        var cost = dist + yawPenalty;
+
+        if (!best || cost < best.cost) {
+            best = { x: bx, y: PICK_RELATIVE_OFFSET.y, z: bz, angle: normalizeDegrees180(ang), cost: cost };
+        }
+    }
+
+    // Fallback: if nothing fits in padded bounds, use the original method (with hard clamps)
+    if (!best) {
+        var target = calculatePickBaseTargetPosition(obj);
+        return { x: target.x, y: target.y, z: target.z, angle: 0 };
+    }
+    return best;
+}
+
+/**
+ * Calculate a robot base translation (manualTransX/Y/Z) that aligns the arm's
+ * existing Pick & Place keyframes to the current object world position.
+ *
+ * In other words, we move the robot so the object becomes approximately:
+ *   (x=7, z=0) in the robot's local XZ plane (with base rotation ~0).
+ */
+function calculatePickBaseTargetPosition(obj) {
+    var targetX = obj.x - PICK_RELATIVE_OFFSET.x;
+    var targetZ = obj.z - PICK_RELATIVE_OFFSET.z;
+    var targetY = PICK_RELATIVE_OFFSET.y;
+
+    // Keep within table limits used elsewhere
+    if (targetX > 10) targetX = 10;
+    if (targetX < -10) targetX = -10;
+    if (targetZ > 10) targetZ = 10;
+    if (targetZ < -10) targetZ = -10;
+
+    return { x: targetX, y: targetY, z: targetZ };
+}
+
+// --- Destination plate (drop zone) ---
+var destinationPlate = {
+    x: -4.0,
+    z: 5.0,
+    width: 2.0,
+    depth: 2.0,
+    thickness: 0.08,
+    yEpsilon: 0.01 // small lift above the table to avoid z-fighting
+};
+
+var destinationPlateDefaults = {
+    x: destinationPlate.x,
+    z: destinationPlate.z,
+    width: destinationPlate.width,
+    depth: destinationPlate.depth
+};
+
+// Smooth base repositioning for pick mode (avoids teleporting manualTrans)
+var pickBaseMove = {
+    active: false,
+    startX: 0, startY: 0, startZ: 0,
+    endX: 0, endY: 0, endZ: 0
+};
+
+function getCurrentArmTransform() {
+    return createArmTransform(theta[Base], theta[LowerArm], theta[UpperArm], gripperOpen);
+}
+
+function cloneSequenceKeyframes(sequence) {
+    // Safe deep clone for our simple {name,duration,start,end} objects
+    return JSON.parse(JSON.stringify(sequence));
+}
+
 
 function createArmTransform(base, lower, upper, gripper) {
     return { base: base || 0, lower: lower || 0, upper: upper || 0, gripper: gripper || 0.0 };
@@ -204,11 +380,16 @@ var allSequences = {
 
 var sequenceKeyframes = fullSweepSequence;
 var currentSequenceTransform = createArmTransform(0, 0, 0, 0);
+var lastSequenceIndexForStageInit = -1;
 
 function startSequence() {
     isSequenceRunning = true;
     sequenceIndex = 0;
     sequenceTime = 0;
+    lastSequenceIndexForStageInit = -1;
+    pickBaseMove.active = false;
+    pickAndPlaceDynamic.carryAngleApplied = false;
+    pickAndPlaceDynamic.pickupPoseApplied = false;
     if (sequenceKeyframes.length > 0) {
         currentSequenceTransform = cloneArmTransform(sequenceKeyframes[0].start);
     }
@@ -226,17 +407,70 @@ function updateSequence(deltaSeconds) {
     var currentStage = sequenceKeyframes[sequenceIndex];
     if (!currentStage) { stopSequence(); return; }
 
+    // Stage-entry hooks (run once when we enter a new stage)
+    if (sequenceIndex !== lastSequenceIndexForStageInit) {
+        lastSequenceIndexForStageInit = sequenceIndex;
+
+        if (appliedMode === "pick_and_place") {
+            // At the start of each cycle, reposition the robot base so the *current* object position
+            // matches the relative pickup location expected by the hardcoded keyframes.
+            if (currentStage.name === "align") {
+                var pose = computePickBasePoseForObject(objectState, manualTransX, manualTransZ);
+                var target = { x: pose.x, y: pose.y, z: pose.z };
+                // Smoothly move the base during the "align" stage (avoid teleporting)
+                pickBaseMove.active = true;
+                pickBaseMove.startX = manualTransX;
+                pickBaseMove.startY = manualTransY;
+                pickBaseMove.startZ = manualTransZ;
+                pickBaseMove.endX = target.x;
+                pickBaseMove.endY = target.y;
+                pickBaseMove.endZ = target.z;
+                // New run/cycle: clear any previously applied carry target
+                pickAndPlaceDynamic.carryAngleApplied = false;
+                // Apply a pickup base angle so we can keep the robot away from edges.
+                // This rotates the whole pickup motion toward the object while preserving the same keyframes.
+                if (!pickAndPlaceDynamic.pickupPoseApplied) {
+                    pickAndPlaceDynamic.pickupAngle = pose.angle;
+                    applyPickAndPlacePickupPose(sequenceKeyframes, pose.angle);
+                    pickAndPlaceDynamic.pickupPoseApplied = true;
+                }
+            } else {
+                // Only move base during align stage
+                pickBaseMove.active = false;
+            }
+
+            // When we reach the carry rotation stage, compute the correct target base angle
+            // to face the destination plate and patch the remaining keyframes for this run.
+            if (currentStage.name === "rotate_carry" && !pickAndPlaceDynamic.carryAngleApplied) {
+                var carryAngle = computeBaseAngleToTarget(manualTransX, manualTransZ, destinationPlate.x, destinationPlate.z);
+                pickAndPlaceDynamic.carryAngle = carryAngle;
+                applyPickAndPlaceCarryAngle(sequenceKeyframes, carryAngle);
+                pickAndPlaceDynamic.carryAngleApplied = true;
+            }
+        }
+    }
+
     sequenceTime += deltaSeconds * animationSpeed;
     var duration = Math.max(currentStage.duration, 0.0001);
     var progress = sequenceTime / duration;
 
+    // Smooth base reposition during align stage (pick mode)
+    if (appliedMode === "pick_and_place" && currentStage.name === "align" && pickBaseMove.active) {
+        var t = Math.max(0, Math.min(1, progress));
+        manualTransX = pickBaseMove.startX + (pickBaseMove.endX - pickBaseMove.startX) * t;
+        manualTransY = pickBaseMove.startY + (pickBaseMove.endY - pickBaseMove.startY) * t;
+        manualTransZ = pickBaseMove.startZ + (pickBaseMove.endZ - pickBaseMove.startZ) * t;
+        if (t >= 1.0) {
+            pickBaseMove.active = false;
+        }
+    }
+
     if (appliedMode === "pick_and_place") {
         // Trigger "grasp" logic near the end of the "grip_action" stage
         if (currentStage.name === "align" && progress < 0.1) {
-            objectState.x = 7.0; // Reset to original pickup x
-            objectState.y = 2.5; // Reset to table height
-            objectState.z = 0.0; // Reset to original pickup z
-            objectState.isHeld = false; // Ensure it's not held
+            // Do NOT reset object position here; pick target should be based on current object position.
+            // Just ensure it's not held at the start of the sequence.
+            objectState.isHeld = false;
         }
 
         if (currentStage.name === "grip_action" && progress > 0.8) {
@@ -251,9 +485,9 @@ function updateSequence(deltaSeconds) {
             if (objectState.isHeld) {
                 objectState.isHeld = false;
                 // Calculate drop position
-                objectState.x = -4.0; 
-                objectState.z = 5.0;
-                objectState.y = 0.5; // On table
+                objectState.x = destinationPlate.x;
+                objectState.z = destinationPlate.z;
+                objectState.y = 0.5; // On table (plate is visually on table top)
             }
         }
         
@@ -274,6 +508,14 @@ function updateSequence(deltaSeconds) {
         sequenceIndex++;
         sequenceTime = 0;
         if (sequenceIndex >= sequenceKeyframes.length) {
+            // Most sequences loop forever, but Pick & Place should run once per load/play.
+            if (appliedMode === "pick_and_place") {
+                stopSequence();
+                // Keep UI consistent (setupEvents has a helper, but it's scoped there)
+                var btn = document.getElementById("playPauseButton");
+                if (btn) btn.textContent = "Play";
+                return;
+            }
             sequenceIndex = 0; // Loop forever
         }
     }
@@ -353,6 +595,44 @@ function setupEvents() {
         manualTransY = parseFloat(e.target.value); 
         document.getElementById("transYValue").innerText = manualTransY.toFixed(1);
     }; 
+
+    // Destination plate sliders (drop zone)
+    (function initDestinationPlateControls() {
+        var plateXEl = document.getElementById("plateX");
+        var plateZEl = document.getElementById("plateZ");
+        var plateSizeEl = document.getElementById("plateSize");
+
+        if (plateXEl) {
+            plateXEl.value = destinationPlate.x;
+            document.getElementById("plateXValue").innerText = destinationPlate.x.toFixed(1);
+            plateXEl.oninput = function(e) {
+                destinationPlate.x = parseFloat(e.target.value);
+                document.getElementById("plateXValue").innerText = destinationPlate.x.toFixed(1);
+            };
+        }
+
+        if (plateZEl) {
+            plateZEl.value = destinationPlate.z;
+            document.getElementById("plateZValue").innerText = destinationPlate.z.toFixed(1);
+            plateZEl.oninput = function(e) {
+                destinationPlate.z = parseFloat(e.target.value);
+                document.getElementById("plateZValue").innerText = destinationPlate.z.toFixed(1);
+            };
+        }
+
+        if (plateSizeEl) {
+            // width/depth are kept equal for a square plate
+            var initialSize = destinationPlate.width;
+            plateSizeEl.value = initialSize;
+            document.getElementById("plateSizeValue").innerText = initialSize.toFixed(1);
+            plateSizeEl.oninput = function(e) {
+                var size = parseFloat(e.target.value);
+                destinationPlate.width = size;
+                destinationPlate.depth = size;
+                document.getElementById("plateSizeValue").innerText = size.toFixed(1);
+            };
+        }
+    })();
     // Joystick logic
     function createJoystick(knobId, baseId, callback) {
         var stick = document.getElementById(knobId);
@@ -433,11 +713,24 @@ function setupEvents() {
     document.getElementById("resetButton").onclick = function() {
         stopSequence();
         isAnimating = false;
+        pickBaseMove.active = false;
         objectState = {x: 7.0, y: 2.5, z: 0.0, isHeld: false, velocity: 0};
         theta = [0,0,0];
         manualTransX = manualTransY = manualTransZ = 0;
         document.getElementById("trans_y").value = 0;
         document.getElementById("transYValue").innerText = "0.0";
+
+        // Reset destination plate (and its UI)
+        destinationPlate.x = destinationPlateDefaults.x;
+        destinationPlate.z = destinationPlateDefaults.z;
+        destinationPlate.width = destinationPlateDefaults.width;
+        destinationPlate.depth = destinationPlateDefaults.depth;
+        var plateXEl = document.getElementById("plateX");
+        var plateZEl = document.getElementById("plateZ");
+        var plateSizeEl = document.getElementById("plateSize");
+        if (plateXEl) { plateXEl.value = destinationPlate.x; document.getElementById("plateXValue").innerText = destinationPlate.x.toFixed(1); }
+        if (plateZEl) { plateZEl.value = destinationPlate.z; document.getElementById("plateZValue").innerText = destinationPlate.z.toFixed(1); }
+        if (plateSizeEl) { plateSizeEl.value = destinationPlate.width; document.getElementById("plateSizeValue").innerText = destinationPlate.width.toFixed(1); }
         
         cameraHori = 45; cameraElevation = 300; cameraZoom = 0;
         document.getElementById("camZoom").value = 0;
@@ -472,9 +765,8 @@ function setupEvents() {
         appliedMode = mode;
 
         if (mode === "pick_and_place") {
-            manualTransX = 0;
-            manualTransZ = 0;
-            manualTransY = 0; 
+            // Base targeting is computed and eased during the "align" stage (see updateSequence)
+            pickBaseMove.active = false;
         } else {
              // Logic for other modes (force drop object)
              objectState.isHeld = false;
@@ -484,7 +776,16 @@ function setupEvents() {
         }
 
         if (allSequences[mode]) {
-            sequenceKeyframes = allSequences[mode];
+            // For pick_and_place: start from current pose to avoid snapping back to default angles
+            if (mode === "pick_and_place") {
+                var seq = cloneSequenceKeyframes(allSequences[mode]);
+                if (seq.length > 0) {
+                    seq[0].start = getCurrentArmTransform();
+                }
+                sequenceKeyframes = seq;
+            } else {
+                sequenceKeyframes = allSequences[mode];
+            }
             startSequence();
         } else if (mode === "manual") {
             stopSequence(); isAnimating = false;
@@ -560,6 +861,16 @@ function drawObject() {
 function drawTable() {
     var s = scale(20.0, 0.2, 20.0);
     var t = translate(0.0, -0.1, 0.0);
+    var m = mult(modelViewMatrix, mult(t, s));
+    gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(m));
+    gl.drawArrays(gl.TRIANGLES, 0, NumVertices);
+}
+
+function drawDestinationPlate() {
+    // Table top is at y=0.0 (table is centered at -0.1 with thickness 0.2)
+    var yCenter = (destinationPlate.thickness / 2.0) + destinationPlate.yEpsilon;
+    var s = scale(destinationPlate.width, destinationPlate.thickness, destinationPlate.depth);
+    var t = translate(destinationPlate.x, yCenter, destinationPlate.z);
     var m = mult(modelViewMatrix, mult(t, s));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(m));
     gl.drawArrays(gl.TRIANGLES, 0, NumVertices);
@@ -743,6 +1054,7 @@ function render(now) {
     var savedWorld = modelViewMatrix;
     // Draw scene
     drawTable();
+    drawDestinationPlate();
     
     if (!objectState.isHeld) {  
         modelViewMatrix = savedWorld;
