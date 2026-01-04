@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Robotic Arm Digital Twin</title>
+<style>
+    /* Global Styles */
+    * {
+        box-sizing: border-box;
+    }
+    
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #fff7ed;
+        overflow: hidden;
+    }
+
+    /* Header */
+    #page_header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: linear-gradient(120deg, #f78c1f, #ffcc66);
+        color: #fffdf5;
+        text-align: center;
+        padding: 18px 24px;
+        z-index: 999;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    #page_header h1 {
+        margin: 0;
+        font-size: 36px;
+        font-weight: 800;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        letter-spacing: 0.5px;
+    }
+
+    #page_header p {
+        margin: 8px 0 0 0;
+        font-size: 20px;
+        opacity: 0.95;
+        font-weight: 500;
+    }
+
+    /* Main Container */
+    #main_container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        margin-top: 80px;
+    }
+
+    /* Canvas - Direct positioning */
+    #gl-canvas {
+        position: fixed;
+        top: 80px;
+        left: 0;
+        width: calc(100vw - 580px);
+        height: calc(100vh - 80px);
+        background-color: #fff7ed;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        display: block;
+        padding: 0;
+        margin: 0;
+        z-index: 1;
+    }
+
+    /* Control Panel */
+    #controls-container {
+        position: fixed;
+        top: 140px;
+        right: 80px;
+        width: 500px;
+        max-height: calc(100vh - 160px);
+        background: linear-gradient(135deg, #fff6e6 0%, #fff7ed 100%);
+        border: 3px solid #f97316;
+        border-radius: 16px;
+        padding: 24px;
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: 0 8px 24px rgba(249, 115, 22, 0.2), 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    #controls-container::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    #controls-container::-webkit-scrollbar-track {
+        background: linear-gradient(180deg, #fff6e6, #fff7ed);
+        border-radius: 5px;
+        border: 1px solid rgba(249, 115, 22, 0.1);
+    }
+
+    #controls-container::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #f97316, #ea580c);
+        border-radius: 5px;
+        border: 2px solid #fff6e6;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    #controls-container::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #ea580c, #c2410c);
+    }
+
+    /* Control Group */
+    .control-group {
+        margin-bottom: 20px;
+        padding: 20px;
+        background: linear-gradient(135deg, #ffffff 0%, #fffaf5 100%);
+        border-radius: 12px;
+        border: 2px solid rgba(249, 115, 22, 0.25);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.08), inset 0 1px 0 rgba(255,255,255,0.8);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .control-group::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #f97316, #fbbf24, #f97316);
+        opacity: 0.6;
+    }
+
+    .control-group:hover {
+        border-color: rgba(249, 115, 22, 0.4);
+        box-shadow: 0 6px 16px rgba(249, 115, 22, 0.12), inset 0 1px 0 rgba(255,255,255,0.8);
+        transform: translateY(-1px);
+    }
+
+    .control-group:last-child {
+        margin-bottom: 0;
+    }
+
+    h3 {
+        margin: 0 0 24px 0;
+        color: #ea580c;
+        font-size: 30px;
+        font-weight: 800;
+        text-align: center;
+        background: linear-gradient(135deg, #ea580c, #f97316);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        padding-bottom: 14px;
+        border-bottom: 3px solid;
+        border-image: linear-gradient(90deg, transparent, #fbbf24, transparent) 1;
+        position: relative;
+    }
+
+    h3::after {
+        content: '';
+        position: absolute;
+        bottom: -3px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 3px;
+        background: linear-gradient(90deg, #f97316, #fbbf24);
+        border-radius: 2px;
+    }
+
+    h4 {
+        margin: 0 0 16px 0;
+        font-size: 17px;
+        color: #ea580c;
+        text-transform: uppercase;
+        font-weight: 800;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid rgba(249, 115, 22, 0.15);
+    }
+
+    h4::before {
+        content: '▸';
+        color: #f97316;
+        font-size: 12px;
+    }
+
+    /* Labels */
+    label {
+        font-size: 15px;
+        color: #7c2d12;
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 700;
+        padding: 4px 0;
+    }
+
+    .val-display {
+        color: #ea580c;
+        font-weight: 800;
+        font-size: 18px;
+        background: linear-gradient(135deg, #fed7aa, #fdba74);
+        padding: 4px 12px;
+        border-radius: 12px;
+        min-width: 50px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid rgba(249, 115, 22, 0.2);
+        flex-shrink: 0;
+    }
+
+    /* Slider Container - slider and value side by side */
+    .slider-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    input[type="range"] {
+        height: 8px;
+        border-radius: 4px;
+        background: linear-gradient(to right, #fed7aa 0%, #fdba74 50%, #f97316 100%);
+        outline: none;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid rgba(249, 115, 22, 0.2);
+    }
+
+    .slider-container input[type="range"] {
+        flex: 1;
+        margin: 0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ea580c, #f97316);
+        cursor: pointer;
+        box-shadow: 0 3px 8px rgba(234, 88, 12, 0.4), 0 0 0 2px #fff7ed;
+        transition: all 0.2s;
+        border: 2px solid #fff7ed;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+        background: linear-gradient(135deg, #c2410c, #ea580c);
+        transform: scale(1.15);
+        box-shadow: 0 4px 12px rgba(234, 88, 12, 0.5), 0 0 0 2px #fff7ed;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #ea580c;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    /* Joystick Styles */
+    .joystick-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 16px 0;
+        padding: 12px;
+        background: linear-gradient(135deg, #fff7ed, #fff6e6);
+        border-radius: 12px;
+        border: 1px dashed rgba(249, 115, 22, 0.3);
+    }
+
+    .joystick-base {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, #fed7aa 0%, #fdba74 50%, #f97316 100%);
+        border: 4px solid #f97316;
+        border-radius: 50%;
+        position: relative;
+        margin: 8px auto;
+        touch-action: none;
+        box-shadow: 0 6px 16px rgba(249, 115, 22, 0.3), inset 0 2px 4px rgba(255,255,255,0.5);
+        transition: transform 0.2s;
+    }
+
+    .joystick-base:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4), inset 0 2px 4px rgba(255,255,255,0.5);
+    }
+
+    .joystick-knob {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #ea580c, #f97316);
+        border-radius: 50%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        cursor: grab;
+        box-shadow: 0 4px 12px rgba(234, 88, 12, 0.5), inset 0 -2px 4px rgba(0,0,0,0.2);
+        transition: transform 0.15s ease-out, box-shadow 0.15s;
+        border: 2px solid rgba(255,255,255,0.3);
+    }
+
+    .joystick-knob:active {
+        background: linear-gradient(135deg, #c2410c, #ea580c);
+        cursor: grabbing;
+        box-shadow: 0 2px 8px rgba(234, 88, 12, 0.6), inset 0 2px 4px rgba(0,0,0,0.3);
+        transition: none;
+    }
+
+    .joystick-label {
+        font-size: 14px;
+        color: #7c2d12;
+        margin-top: 10px;
+        text-align: center;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Buttons */
+    .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    button {
+        flex: 1;
+        padding: 12px 18px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+        position: relative;
+        overflow: hidden;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.5s;
+    }
+
+    button:hover::before {
+        left: 100%;
+    }
+
+    button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+
+    button:active {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2), inset 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .btn-green {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: white;
+    }
+
+    .btn-green:hover {
+        background: linear-gradient(135deg, #16a34a, #15803d);
+    }
+
+    .btn-orange {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: white;
+    }
+
+    .btn-orange:hover {
+        background: linear-gradient(135deg, #ea580c, #c2410c);
+    }
+
+    #resetButton {
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .btn-blue {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+    }
+
+    .btn-blue:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    }
+
+    /* Select Dropdown */
+    select {
+        width: 100%;
+        padding: 12px 14px;
+        margin-bottom: 14px;
+        border: 2px solid #fbbf24;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #ffffff, #fff7ed);
+        color: #7c2d12;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.3s;
+        box-shadow: 0 2px 6px rgba(249, 115, 22, 0.1);
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ea580c' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 36px;
+    }
+
+    select:hover {
+        border-color: #f97316;
+        box-shadow: 0 4px 10px rgba(249, 115, 22, 0.2);
+        transform: translateY(-1px);
+    }
+
+    select:focus {
+        border-color: #ea580c;
+        box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15), 0 4px 12px rgba(249, 115, 22, 0.2);
+        transform: translateY(-1px);
+    }
+
+    /* Info Text */
+    .info-text {
+        font-size: 14px;
+        color: #92400e;
+        margin: 10px 0;
+        line-height: 1.6;
+        font-style: italic;
+        padding: 8px 12px;
+        background: rgba(254, 215, 170, 0.3);
+        border-radius: 6px;
+        border-left: 3px solid #f97316;
+    }
+
+    /* Keyboard Shortcuts Info */
+    .keyboard-info {
+        background: linear-gradient(135deg, #fff7ed, #fff6e6);
+        border: 2px dashed #fbbf24;
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .keyboard-info::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #f97316, transparent);
+    }
+
+    .keyboard-info h4 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .keyboard-info h4::before {
+        display: none;
+    }
+
+    .keyboard-info p {
+        margin: 8px 0;
+        font-size: 14px;
+        color: #7c2d12;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+    }
+
+    kbd {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: white;
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        font-weight: 800;
+        box-shadow: 0 3px 6px rgba(234, 88, 12, 0.3), inset 0 -2px 2px rgba(0,0,0,0.2);
+        border: 1px solid rgba(255,255,255,0.2);
+        min-width: 32px;
+        text-align: center;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1600px) {
+        #controls-container {
+            right: 80px;
+        }
+        #gl-canvas {
+            width: calc(100vw - 600px);
+        }
+    }
+    
+    @media (max-width: 1400px) {
+        #controls-container {
+            right: 60px;
+            width: 460px;
+        }
+        #gl-canvas {
+            width: calc(100vw - 560px);
+        }
+    }
+    
+    @media (max-width: 1200px) {
+        #controls-container {
+            right: 20px;
+            width: 440px;
+        }
+        #gl-canvas {
+            width: calc(100vw - 500px);
+        }
+        
+        h3 {
+            font-size: 20px;
+        }
+        
+        .control-group {
+            padding: 12px;
+        }
+    }
+    
+    @media (max-width: 1000px) {
+        #controls-container {
+            right: 10px;
+            width: 380px;
+            padding: 16px;
+        }
+        #gl-canvas {
+            width: calc(100vw - 420px);
+        }
+        
+        #page_header h1 {
+            font-size: 22px;
+        }
+        
+        #page_header p {
+            font-size: 12px;
+        }
+        
+        h4 {
+            font-size: 12px;
+        }
+        
+        label {
+            font-size: 11px;
+        }
+        
+        button {
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+    }
+    
+    @media (max-width: 800px) {
+        #controls-container {
+            position: relative;
+            top: auto;
+            right: auto;
+            width: 100%;
+            max-height: 50vh;
+            margin: 10px;
+        }
+        
+        #gl-canvas {
+            position: relative;
+            top: auto;
+            width: 100%;
+            height: 50vh;
+            margin: 10px;
+        }
+        
+        #main_container {
+            display: flex;
+            flex-direction: column;
+            height: auto;
+            min-height: calc(100vh - 80px);
+        }
+    }
+    
+    /* Prevent text selection during dragging (better UX) */
+    .joystick-base,
+    .joystick-knob,
+    input[type="range"] {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+    }
+    
+    /* Smooth transitions for layout changes */
+    #controls-container,
+    #gl-canvas {
+        transition: width 0.3s ease, height 0.3s ease, right 0.3s ease;
+    }
+</style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header id="page_header">
+        <h1>Robotic Arm Digital Twin</h1>
+        <p>Prepared by : Lim Yi Jie (22304136), Joanne Loi Jin Xu (22303573), Goh Shu Ying (22305493), Saw Yee Xuan (22305488)</p>
+    </header>
+
+    <!-- Main Container -->
+    <div id="main_container">
+        <!-- Canvas -->
+        <canvas id="gl-canvas" width="800" height="600"></canvas>
+
+        <!-- Control Panel -->
+<div id="controls-container">
+            <h3>Control Panel</h3>
+
+            <!-- Joint Angles -->
+    <div class="control-group">
+        <h4>Joint Angles</h4>
+        <label>Base Rotation (-180° to 180°)</label>
+        <div class="slider-container">
+            <input id="slider1" type="range" min="-180" max="180" step="1" value="0" />
+            <span id="val1" class="val-display">0</span>
+        </div>
+
+        <label>Lower Arm (-45° to 45°)</label>
+        <div class="slider-container">
+            <input id="slider2" type="range" min="-45" max="45" step="1" value="0" />
+            <span id="val2" class="val-display">0</span>
+        </div>
+        
+        <label>Upper Arm (-150° to 150°)</label>
+        <div class="slider-container">
+            <input id="slider3" type="range" min="-150" max="150" step="1" value="0" />
+            <span id="val3" class="val-display">0</span>
+        </div>
+
+        <label>Gripper (-45° to 5°)</label>
+        <div class="slider-container">
+            <input id="slider4" type="range" min="-45" max="5" step="1" value="-45" />
+            <span id="val4" class="val-display">0</span>
+        </div>
+    </div>
+
+            <!-- Model Parameters -->
+    <div class="control-group">
+        <h4>Model Parameters</h4>
+        <label>Animation Speed</label>
+        <div class="slider-container">
+            <input id="speedSlider" type="range" min="0.1" max="5.0" step="0.1" value="1.0" />
+            <span id="speedValue" class="val-display">1.0</span>
+        </div>
+        
+        <label>Extrusion Depth</label>
+        <div class="slider-container">
+            <input id="extrusionSlider" type="range" min="0.5" max="1.1" step="0.1" value="1.0" />
+            <span id="extrusionValue" class="val-display">1.00</span>
+        </div>
+        
+        <label>Scale Factor</label>
+        <div class="slider-container">
+            <input id="scaleSlider" type="range" min="0.7" max="1.4" step="0.1" value="1.0" />
+            <span id="scaleValue" class="val-display">1.00</span>
+        </div>
+    </div>
+
+            <!-- Robot Position Control -->
+    <div class="control-group">
+        <h4>Robot Position Control</h4>
+                <p class="info-text">Drag joystick to move robot (X / Z axes)</p>
+                <div class="joystick-container">
+        <div id="joystick-zone-2" class="joystick-base">
+            <div id="joystick-knob-2" class="joystick-knob"></div>
+                    </div>
+                    <p class="joystick-label">Position (X/Z)</p>
+        </div>
+        
+        <label>Height (Y)</label>
+        <div class="slider-container">
+            <input id="trans_y" type="range" min="-2" max="0" step="0.1" value="0" />
+            <span id="transYValue" class="val-display">0.0</span>
+        </div>
+    </div>
+
+            <!-- Destination Plate Control -->
+    <div class="control-group">
+        <h4>Destination Plate</h4>
+        <p class="info-text">Adjust where the object is placed</p>
+
+        <label>Plate X (-10 to 10)</label>
+        <div class="slider-container">
+            <input id="plateX" type="range" min="-10" max="10" step="0.1" value="-4.0" />
+            <span id="plateXValue" class="val-display">-4.0</span>
+        </div>
+
+        <label>Plate Z (-10 to 10)</label>
+        <div class="slider-container">
+            <input id="plateZ" type="range" min="-10" max="10" step="0.1" value="5.0" />
+            <span id="plateZValue" class="val-display">5.0</span>
+        </div>
+
+        <label>Plate Size (1.0 to 6.0)</label>
+        <div class="slider-container">
+            <input id="plateSize" type="range" min="1.0" max="6.0" step="0.1" value="2.0" />
+            <span id="plateSizeValue" class="val-display">2.0</span>
+        </div>
+    </div>
+
+            <!-- Camera Control -->
+    <div class="control-group">
+            <h4>Camera Control</h4>
+                <p class="info-text">Click & drag joystick to rotate camera view</p>
+                <div class="joystick-container">
+            <div id="joystick-zone" class="joystick-base">
+                <div id="joystick-knob" class="joystick-knob"></div>
+      </div>
+                    <p class="joystick-label">Camera Rotation</p>
+                </div>
+                
+        <label>Zoom</label>
+        <div class="slider-container">
+            <input id="camZoom" type="range" min="-20" max="5" step="0.5" value="0" />
+            <span id="zoomValue" class="val-display">0</span>
+        </div>     
+    </div>
+
+            <!-- Animation Sequences -->
+    <div class="control-group">
+        <h4>Animation Sequences</h4>
+        <select id="rotationModeSelect">
+            <option value="pick_and_place">Pick and Place</option>
+            <option value="manual">Manual Control</option>
+            <option value="full_sweep">Full Sweep Sequence</option>
+            <option value="exercise">Exercise/Stretch</option>
+            <option value="circular">Circular Motion</option>
+
+        </select>
+                <div class="button-group">
+            <button id="applyRotationButton" class="btn-blue">Load Mode</button>
+            <button id="playPauseButton" class="btn-green">Play/Pause</button>
+        </div>
+                <button id="resetButton" class="btn-orange">Reset All</button>
+</div>
+
+            <!-- Keyboard Shortcuts Info -->
+            <div class="keyboard-info">
+                <h4>Keyboard Shortcuts</h4>
+                <p><kbd>Q</kbd> / <kbd>A</kbd> - Base Rotation (±)</p>
+                <p><kbd>W</kbd> / <kbd>S</kbd> - Lower Arm (±)</p>
+                <p><kbd>E</kbd> / <kbd>D</kbd> - Upper Arm (±)</p>
+                <p><kbd>R</kbd> / <kbd>F</kbd> - Gripper Open/Close</p>
+                <p><kbd>Space</kbd> - Play/Pause Animation</p>
+                <p><kbd>Enter</kbd> - Reset All</p>
+            </div>
+        </div>
+</div>
+
+    <!-- Shader Scripts -->
+<script id="vertex-shader" type="x-shader/x-vertex">
+#version 300 es
+in vec4 aPosition;
+in vec4 aColor;
+out vec4 vColor;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+void main() {
+    vColor = aColor;
+    gl_Position = projectionMatrix * modelViewMatrix * aPosition;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+#version 300 es
+precision mediump float;
+in vec4 vColor;
+out vec4 fColor;
+void main() {
+    fColor = vColor;
+}
+</script>
+
+    <!-- External Scripts -->
+    <script src="../Common/initShaders.js"></script>
+    <script src="../Common/MVnew.js"></script>
+    <script src="robotArm.js"></script>
+
+</body>
+</html>
