@@ -9,33 +9,7 @@ function render(now) {
 
     // Updates
     if (isSequenceRunning) updateSequence(deltaSeconds);
-    if (appliedMode === "arm_rotate" && isAnimating) {
-        var floorLimit = -140;
-        var highLimit = 100;
-
-        // Increment based on direction
-        animationAngle += 60 * deltaSeconds * animationSpeed * rotationDir;
-
-        // Check limits and flip direction
-        if (animationAngle > highLimit) {
-            animationAngle = highLimit;
-            rotationDir = -1; // Go Down
-        }
-        if (animationAngle < floorLimit) {
-            animationAngle = floorLimit;
-            rotationDir = 1;  // Go Up
-        }
-
-        theta[UpperArm] = animationAngle;
-
-        // Continuous base rotation
-        theta[Base] -= 60 * deltaSeconds * animationSpeed;
-
-        theta[LowerArm] = 30;
-
-        syncSliders();
-    }
-
+    
     // Physics (Gravity)
     if (!objectState.isHeld) {
         if (objectState.y > 0.5) {
