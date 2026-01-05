@@ -984,16 +984,6 @@ function render(now) {
     // Updates
     if (isSequenceRunning) updateSequence(deltaSeconds);
 
-
-    // Physics (Gravity)
-    if (!objectState.isHeld) {
-        if (objectState.y > 0.5) {
-            objectState.y -= 0.1 * animationSpeed; // Fall
-        } else {
-            objectState.y = 0.5; // Floor
-        }
-    }
-
     // Joystick Controls
     // Camera joystick logic
     if (camJoyX !== 0 || camJoyY !== 0) {
