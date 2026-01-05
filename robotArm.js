@@ -792,8 +792,6 @@ function setupEvents() {
         var isPlaying = false;
         if (allSequences[appliedMode]) {
             isPlaying = isSequenceRunning;
-        } else if (appliedMode === "arm_rotate") {
-            isPlaying = isAnimating;
         }
         
         btn.textContent = isPlaying ? "Pause" : "Play";
@@ -829,8 +827,6 @@ function setupEvents() {
             startSequence();
         } else if (mode === "manual") {
             stopSequence(); isAnimating = false;
-        } else if (mode === "arm_rotate") {
-            stopSequence(); isAnimating = true;
         }
         
         updatePlayPauseButton();
@@ -853,10 +849,7 @@ function setupEvents() {
                 }
             }
         }
-        // Handle continuous rotation mode
-        else if (appliedMode === "arm_rotate") {
-            isAnimating = !isAnimating;
-        }
+
         // Manual mode doesn't have play/pause
         else if (appliedMode === "manual") {
             // Do nothing in manual mode
@@ -990,33 +983,7 @@ function render(now) {
 
     // Updates
     if (isSequenceRunning) updateSequence(deltaSeconds);
-    if (appliedMode === "arm_rotate" && isAnimating) {
-        var floorLimit = -140; 
-        var highLimit = 100;   
 
-        // Increment based on direction 
-        animationAngle += 60 * deltaSeconds * animationSpeed * rotationDir;
-
-        // Check limits and flip direction
-        if (animationAngle > highLimit) {
-            animationAngle = highLimit;
-            rotationDir = -1; // Go Down
-        }
-        if (animationAngle < floorLimit) {
-            animationAngle = floorLimit;
-            rotationDir = 1;  // Go Up
-        }
-        
-        theta[UpperArm] = animationAngle;
-
-        // Continuous base rotation
-        theta[Base] -= 60 * deltaSeconds * animationSpeed; 
-
-
-        theta[LowerArm] = 30; 
-
-        syncSliders();
-    }
 
     // Physics (Gravity)
     if (!objectState.isHeld) {
